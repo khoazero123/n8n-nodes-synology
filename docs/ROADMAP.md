@@ -52,10 +52,16 @@ Functionality from `khoazero123/n8n-nodes-synology-drive` is integrated into thi
 Existing Drive operations to preserve:
 
 - List/search files and folders
+- Get file/folder metadata and copy files/folders
 - Upload binary data
 - Create text files and folders
 - Download files as binary output
 - Delete files/folders, soft or permanent
+- List Team Folders
+- List/create/delete/apply Labels
+- Create public and advanced sharing links
+
+The Drive node currently covers the discovered file-management, label, team-folder, and sharing operations. Synology may expose additional version-dependent endpoints (for example permission management, link updates, trash, version history, office conversion, and file requests); those should be added only after their request and response schemas are verified against the target Drive Server version.
 
 The Drive node is registered in the package manifest and passes the package build, ESLint, n8n community-node lint, and package dry-run checks.
 

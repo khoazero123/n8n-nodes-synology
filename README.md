@@ -36,6 +36,13 @@ Supported file operations:
 - Upload binary data
 - Download files as n8n binary data
 - Delete files or folders, with optional permanent deletion
+- Get file or folder metadata
+- Copy files or folders
+- List Team Folders
+- List, create, delete, and apply Labels
+- Create public and advanced sharing links
+
+Drive operations use Synology's Drive application API and DSM WebAPI endpoints exposed by Drive Server. Availability of Team Folders, Labels, advanced sharing, and some permissions depends on the installed Drive Server version and the user's permissions.
 
 Drive uses the shared **Synology API** credential. Its application REST API uses a separate Drive session internally; the node handles that login and sends the required `id` and `did` cookies.
 

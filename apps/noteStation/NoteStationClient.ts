@@ -11,6 +11,16 @@ import {
 	PUBLIC_PERMISSION_API_VERSION,
 	SHARD_LINK_API,
 	SHARD_LINK_API_VERSION,
+	USER_PERMISSION_API,
+	USER_PERMISSION_API_VERSION,
+	GROUP_PERMISSION_API,
+	GROUP_PERMISSION_API_VERSION,
+	SHARE_PRIV_API,
+	SHARE_PRIV_API_VERSION,
+	TAG_API,
+	TAG_API_VERSION,
+	INFO_API,
+	INFO_API_VERSION,
 	STACK_API,
 	STACK_API_VERSION,
 } from './constants';
@@ -26,6 +36,8 @@ import type {
 	NoteStationData,
 	SetPublicShareInput,
 	SetStackInput,
+	SetIndividualShareInput,
+	RemoveIndividualShareInput,
 	UpdateNotebookInput,
 	UpdateNoteInput,
 } from './types';
@@ -253,6 +265,87 @@ export class NoteStationClient {
 			method: 'get',
 			session: NOTE_STATION_SESSION,
 			params: { object_id: input.objectId, mode: input.mode ?? 'public' },
+		});
+	}
+
+	async setUserShare(input: SetIndividualShareInput): Promise<NoteStationData> {
+		await this.enablePermission(input.objectId);
+		return await this.synology.request({
+			api: USER_PERMISSION_API,
+			version: USER_PERMISSION_API_VERSION,
+			method: 'set',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: input.objectId, username: input.name, perm: input.permission },
+		});
+	}
+
+	async setGroupShare(input: SetIndividualShareInput): Promise<NoteStationData> {
+		await this.enablePermission(input.objectId);
+		return await this.synology.request({
+			api: GROUP_PERMISSION_API,
+			version: GROUP_PERMISSION_API_VERSION,
+			method: 'set',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: input.objectId, groupname: input.name, perm: input.permission },
+		});
+	}
+
+	async removeUserShare(input: RemoveIndividualShareInput): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: USER_PERMISSION_API,
+			version: USER_PERMISSION_API_VERSION,
+			method: 'delete',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: input.objectId, username: input.name },
+		});
+	}
+
+	async removeGroupShare(input: RemoveIndividualShareInput): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: GROUP_PERMISSION_API,
+			version: GROUP_PERMISSION_API_VERSION,
+			method: 'delete',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: input.objectId, groupname: input.name },
+		});
+	}
+
+	async listShares(input: ListInput = {}): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: SHARE_PRIV_API,
+			version: SHARE_PRIV_API_VERSION,
+			method: 'list',
+			session: NOTE_STATION_SESSION,
+			params: listParams(input),
+		});
+	}
+
+	async listTags(input: ListInput = {}): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: TAG_API,
+			version: TAG_API_VERSION,
+			method: 'list',
+			session: NOTE_STATION_SESSION,
+			params: listParams(input),
+		});
+	}
+
+	async getInfo(): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: INFO_API,
+			version: INFO_API_VERSION,
+			method: 'get',
+			session: NOTE_STATION_SESSION,
+		});
+	}
+
+	private async enablePermission(objectId: string): Promise<void> {
+		await this.synology.request({
+			api: PERMISSION_API,
+			version: PERMISSION_API_VERSION,
+			method: 'set',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: objectId, enabled: true },
 		});
 	}
 }

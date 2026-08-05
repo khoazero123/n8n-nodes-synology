@@ -23,7 +23,10 @@ Current implementation includes:
 - Shared DSM/WebAPI transport client
 - `Synology Note Station` node
 - Notebook, note, shelf/stack, and public-share operations
+- User/group share operations, share-principal listing, Note Station info, and tag listing
 - Full-note retrieval after note create/update when requested
+
+Attachment upload/download/delete, note encryption, note versions, import/export, and recycle-bin restore are not exposed yet because their request/response contracts are not verified against the installed Note Station WebAPI.
 
 ### Synology Drive
 

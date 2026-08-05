@@ -36,7 +36,20 @@ const shelfOperations = [
 const shareOperations = [
 	{ name: 'Delete Public Share', value: 'deletePublic', action: 'Delete public share' },
 	{ name: 'Get Public Link', value: 'getPublicLink', action: 'Get public share link' },
+	{ name: 'List Share Principals', value: 'listPrincipals', action: 'List users and groups' },
+	{ name: 'Remove Group Share', value: 'removeGroup', action: 'Remove group share' },
+	{ name: 'Remove User Share', value: 'removeUser', action: 'Remove user share' },
+	{ name: 'Share with Group', value: 'setGroup', action: 'Share with group' },
 	{ name: 'Set Public Share', value: 'setPublic', action: 'Set public share' },
+	{ name: 'Share with User', value: 'setUser', action: 'Share with user' },
+];
+
+const tagOperations = [
+	{ name: 'Get Many', value: 'getMany', action: 'Get many tags' },
+];
+
+const infoOperations = [
+	{ name: 'Get', value: 'get', action: 'Get Note Station information' },
 ];
 
 export class SynologyNoteStation implements INodeType {
@@ -61,10 +74,12 @@ export class SynologyNoteStation implements INodeType {
 				noDataExpression: true,
 				options: [
 					{ name: 'Attachment', value: 'attachment' },
+					{ name: 'Info', value: 'info' },
 					{ name: 'Note', value: 'note' },
 					{ name: 'Notebook', value: 'notebook' },
 					{ name: 'Share', value: 'share' },
 					{ name: 'Shelf', value: 'shelf' },
+					{ name: 'Tag', value: 'tag' },
 				],
 				default: 'note',
 			},
@@ -103,6 +118,14 @@ export class SynologyNoteStation implements INodeType {
 				displayOptions: { show: { resource: ['share'] } },
 				options: shareOperations,
 				default: 'setPublic',
+			},
+			{
+				displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true,
+				displayOptions: { show: { resource: ['tag'] } }, options: tagOperations, default: 'getMany',
+			},
+			{
+				displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true,
+				displayOptions: { show: { resource: ['info'] } }, options: infoOperations, default: 'get',
 			},
 			{
 				displayName: 'Object ID',
@@ -225,7 +248,7 @@ export class SynologyNoteStation implements INodeType {
 				type: 'string',
 				required: true,
 				default: '',
-				displayOptions: { show: { resource: ['share'] } },
+				displayOptions: { show: { resource: ['share'], operation: ['setPublic', 'deletePublic', 'getPublicLink', 'setUser', 'setGroup', 'removeUser', 'removeGroup'] } },
 				description: 'Note, notebook, or smart note object_id to share',
 			},
 			{
@@ -233,11 +256,21 @@ export class SynologyNoteStation implements INodeType {
 				name: 'permission',
 				type: 'options',
 				default: 'ro',
-				displayOptions: { show: { resource: ['share'], operation: ['setPublic'] } },
+				displayOptions: { show: { resource: ['share'], operation: ['setPublic', 'setUser', 'setGroup'] } },
 				options: [
 					{ name: 'Read Only', value: 'ro' },
 					{ name: 'Read Write', value: 'rw' },
 				],
+			},
+			{
+				displayName: 'Principal Name', name: 'principalName', type: 'string', required: true, default: '',
+				displayOptions: { show: { resource: ['share'], operation: ['setUser', 'setGroup', 'removeUser', 'removeGroup'] } },
+				description: 'DSM username or group name',
+			},
+			{
+				displayName: 'Principal Type', name: 'principalType', type: 'options', required: true,
+				options: [{ name: 'Group', value: 'group' }, { name: 'User', value: 'user' }], default: 'user',
+				displayOptions: { show: { resource: ['share'], operation: ['listPrincipals'] } },
 			},
 			{
 				displayName: 'Recursive',
@@ -316,6 +349,15 @@ export class SynologyNoteStation implements INodeType {
 				if (operation === 'setPublic') data = await noteStation.setPublicShare({ objectId, permission: this.getNodeParameter('permission', i) as 'ro' | 'rw' });
 				if (operation === 'deletePublic') data = await noteStation.deletePublicShare({ objectId });
 				if (operation === 'getPublicLink') data = await noteStation.getPublicShareLink({ objectId });
+				if (operation === 'listPrincipals') data = await noteStation.listShares();
+				if (operation === 'setUser') data = await noteStation.setUserShare({ objectId, name: this.getNodeParameter('principalName', i) as string, permission: this.getNodeParameter('permission', i) as 'ro' | 'rw' });
+				if (operation === 'setGroup') data = await noteStation.setGroupShare({ objectId, name: this.getNodeParameter('principalName', i) as string, permission: this.getNodeParameter('permission', i) as 'ro' | 'rw' });
+				if (operation === 'removeUser') data = await noteStation.removeUserShare({ objectId, name: this.getNodeParameter('principalName', i) as string });
+				if (operation === 'removeGroup') data = await noteStation.removeGroupShare({ objectId, name: this.getNodeParameter('principalName', i) as string });
+			} else if (resource === 'tag') {
+				if (operation === 'getMany') data = await noteStation.listTags({ limit: this.getNodeParameter('limit', i) as number, offset: this.getNodeParameter('offset', i) as number });
+			} else if (resource === 'info') {
+				if (operation === 'get') data = await noteStation.getInfo();
 			}
 
 			returnData.push({ json: data ?? { message: `Operation ${resource}.${operation} is planned but not implemented yet` }, pairedItem: { item: i } });

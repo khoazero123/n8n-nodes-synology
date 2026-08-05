@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Expanded Note Station sharing with user/group grant and revoke operations.
+- Added share-principal listing, tag listing, and Note Station info lookup.
 - Expanded Synology Drive with file/folder metadata and copy operations.
 - Added Team Folder listing.
 - Added Label listing, creation, deletion, file-label management, and labelled-file listing.

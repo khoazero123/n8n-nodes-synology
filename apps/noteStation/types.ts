@@ -73,4 +73,15 @@ export interface GetPublicShareLinkInput {
 	mode?: string;
 }
 
+export interface SetIndividualShareInput {
+	objectId: string;
+	name: string;
+	permission: 'ro' | 'rw';
+}
+
+export interface RemoveIndividualShareInput {
+	objectId: string;
+	name: string;
+}
+
 export type NoteStationData = IDataObject;

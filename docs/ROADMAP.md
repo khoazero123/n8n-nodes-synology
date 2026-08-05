@@ -38,12 +38,26 @@ Initial implementation order:
 6. Public share and user/group share.
 7. Attachment upload/list/download/delete.
 
+Implemented after API discovery:
+
+- User and group share set/remove operations.
+- Share principal listing.
+- Tag listing.
+- Note Station information lookup.
+
 Known tested API facts from local NAS discovery:
 
 - Login: `SYNO.API.Auth`, version `7`, method `login`, `session=NoteStation`, `format=sid`.
 - Notebook create: `SYNO.NoteStation.Notebook`, version `2`, method `create`, param `title`.
 - Note create: `SYNO.NoteStation.Note`, version `3`, method `create`, params `title`, `parent_id`, `content`, optional `brief`, `commit_msg`.
 - Create note response may not include the saved content; follow up with `get` when content verification is needed.
+
+Still pending contract verification:
+
+- Attachment upload/list/download/delete.
+- Native encryption operations.
+- Note version/history and restore.
+- Import/export and recycle-bin restore.
 
 ## Phase 2: Drive migration — complete
 

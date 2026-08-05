@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 For releases prior to v0.0.2, please refer to the git commit history.
 
+## [0.0.7] - 2026-08-05
+
+### Fixed
+- Made the Docker n8n E2E data directory writable by the container user in CI.
+
 ## [0.0.6] - 2026-08-05
 
 ### Fixed

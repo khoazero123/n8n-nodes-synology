@@ -126,6 +126,7 @@ jobs:
           rm -rf .e2e-n8n
           mkdir -p .e2e-n8n/custom/n8n-nodes-synology
           cp -a dist package.json index.js .e2e-n8n/custom/n8n-nodes-synology/
+          chmod -R a+rwX .e2e-n8n
 
       - name: Start Docker n8n for expanded Note Station E2E
         run: |

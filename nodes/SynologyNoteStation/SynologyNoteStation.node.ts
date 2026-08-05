@@ -77,6 +77,10 @@ const importOperations = [
 	{ name: 'Import Notebook', value: 'notebook', action: 'Import a Note Station notebook export' },
 ];
 
+const attachmentOperations = [
+	{ name: 'Download', value: 'download', action: 'Download a note attachment' },
+];
+
 export class SynologyNoteStation implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Synology Note Station',
@@ -108,6 +112,7 @@ export class SynologyNoteStation implements INodeType {
 					{ name: 'Encryption', value: 'encryption' },
 					{ name: 'Export', value: 'export' },
 					{ name: 'Import', value: 'import' },
+					{ name: 'Attachment', value: 'attachment' },
 				],
 				default: 'note',
 			},
@@ -170,6 +175,10 @@ export class SynologyNoteStation implements INodeType {
 			{
 				displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true,
 				displayOptions: { show: { resource: ['import'] } }, options: importOperations, default: 'enex',
+			},
+			{
+				displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true,
+				displayOptions: { show: { resource: ['attachment'] } }, options: attachmentOperations, default: 'download',
 			},
 			{
 				displayName: 'Object ID',
@@ -236,6 +245,14 @@ export class SynologyNoteStation implements INodeType {
 			{
 				displayName: 'Task ID', name: 'taskId', type: 'string', default: '',
 				displayOptions: { show: { resource: ['export'], operation: ['status', 'download'] } },
+			},
+			{
+				displayName: 'Attachment Version', name: 'attachmentVersion', type: 'string', required: true, default: '',
+				displayOptions: { show: { resource: ['attachment'] } },
+			},
+			{
+				displayName: 'Attachment File ID', name: 'attachmentFileId', type: 'string', required: true, default: '',
+				displayOptions: { show: { resource: ['attachment'] } },
 			},
 			{
 				displayName: 'Binary Property', name: 'binaryProperty', type: 'string', default: 'data',
@@ -470,6 +487,14 @@ export class SynologyNoteStation implements INodeType {
 					returnData.push({ json: {}, binary: { data: binary }, pairedItem: { item: i } });
 					continue;
 				}
+			} else if (resource === 'attachment') {
+				const response = await noteStation.getAttachment({ objectId: this.getNodeParameter('objectId', i) as string, version: this.getNodeParameter('attachmentVersion', i) as string, fileId: this.getNodeParameter('attachmentFileId', i) as string });
+				const buffer = await this.helpers.binaryToBuffer(response.body as Buffer | import('stream').Readable);
+				const headers = response.headers as Record<string, string>;
+				const fileName = /filename="?([^";]+)"?/i.exec(headers['content-disposition'] ?? '')?.[1] ?? this.getNodeParameter('attachmentFileId', i) as string;
+				const binary = await this.helpers.prepareBinaryData(buffer, fileName, headers['content-type']?.split(';')[0] ?? 'application/octet-stream');
+				returnData.push({ json: {}, binary: { data: binary }, pairedItem: { item: i } });
+				continue;
 			} else if (resource === 'import') {
 				const binaryProperty = this.getNodeParameter('binaryProperty', i) as string;
 				const binary = items[i].binary?.[binaryProperty];

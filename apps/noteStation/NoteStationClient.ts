@@ -13,6 +13,8 @@ import {
 	IMPORT_NOTEBOOK_API,
 	IMPORT_ENEX_API,
 	IMPORT_API_VERSION,
+	NOTE_APPLINK_API,
+	NOTE_APPLINK_API_VERSION,
 	NOTE_STATION_SESSION,
 	NOTEBOOK_API,
 	NOTEBOOK_API_VERSION,
@@ -55,6 +57,7 @@ import type {
 	EncryptInput,
 	ExportInput,
 	ImportInput,
+	AttachmentInput,
 } from './types';
 import type { SynologyClient } from '../../transport/SynologyClient';
 
@@ -319,6 +322,16 @@ export class NoteStationClient {
 			{ fieldName: input.filename, filename: input.filename, data: input.data, contentType: input.contentType },
 			{ file: JSON.stringify([{ format: 'raw', name: input.filename }]) },
 		);
+	}
+
+	async getAttachment(input: AttachmentInput): Promise<IN8nHttpFullResponse> {
+		return await this.synology.requestBinary({
+			api: NOTE_APPLINK_API,
+			version: NOTE_APPLINK_API_VERSION,
+			method: 'get',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: input.objectId, ver: input.version, file_id: input.fileId, ...(input.token ? { token: input.token } : {}) },
+		});
 	}
 
 	async setStack(input: SetStackInput): Promise<NoteStationData> {

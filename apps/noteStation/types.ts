@@ -110,4 +110,11 @@ export interface ImportInput {
 	contentType?: string;
 }
 
+export interface AttachmentInput {
+	objectId: string;
+	version: string;
+	fileId: string;
+	token?: string;
+}
+
 export type NoteStationData = IDataObject;

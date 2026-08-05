@@ -45,7 +45,7 @@ Real E2E coverage currently verifies notebook/note lifecycle, append, version li
 
 ### Still pending
 
-- Dedicated real E2E coverage for encryption, import/export, attachment CRUD, version restore, recycle-bin restore, user/group share mutation, and shelf operations.
+- Dedicated real E2E coverage for encryption, import/export, attachment CRUD, version restore, recycle-bin restore, and user/group share mutation. Shelf operations are implemented but blocked on NAS API error 1032 (`synodrive`) during direct and n8n E2E probes.
 
 Known tested API facts from local NAS discovery:
 

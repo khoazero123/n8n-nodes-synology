@@ -78,7 +78,10 @@ const importOperations = [
 ];
 
 const attachmentOperations = [
+	{ name: 'List', value: 'list', action: 'List note attachments' },
+	{ name: 'Upload', value: 'upload', action: 'Upload a note attachment' },
 	{ name: 'Download', value: 'download', action: 'Download a note attachment' },
+	{ name: 'Delete', value: 'delete', action: 'Delete a note attachment' },
 ];
 
 export class SynologyNoteStation implements INodeType {
@@ -248,11 +251,11 @@ export class SynologyNoteStation implements INodeType {
 			},
 			{
 				displayName: 'Attachment Version', name: 'attachmentVersion', type: 'string', required: true, default: '',
-				displayOptions: { show: { resource: ['attachment'] } },
+				displayOptions: { show: { resource: ['attachment'], operation: ['upload', 'download', 'delete'] } },
 			},
 			{
 				displayName: 'Attachment File ID', name: 'attachmentFileId', type: 'string', required: true, default: '',
-				displayOptions: { show: { resource: ['attachment'] } },
+				displayOptions: { show: { resource: ['attachment'], operation: ['download', 'delete'] } },
 			},
 			{
 				displayName: 'Binary Property', name: 'binaryProperty', type: 'string', default: 'data',
@@ -488,6 +491,15 @@ export class SynologyNoteStation implements INodeType {
 					continue;
 				}
 			} else if (resource === 'attachment') {
+				if (operation === 'list') { data = await noteStation.listAttachments(this.getNodeParameter('objectId', i) as string); }
+				if (operation === 'upload') {
+					const binaryProperty = this.getNodeParameter('binaryProperty', i) as string;
+					const binary = items[i].binary?.[binaryProperty];
+					if (!binary) throw new NodeOperationError(this.getNode(), `Binary property '${binaryProperty}' was not found`, { itemIndex: i });
+					data = await noteStation.uploadAttachment({ objectId: this.getNodeParameter('objectId', i) as string, version: this.getNodeParameter('attachmentVersion', i) as string, fileId: '', filename: binary.fileName ?? 'attachment', data: await this.helpers.getBinaryDataBuffer(i, binaryProperty), contentType: binary.mimeType });
+				}
+				if (operation === 'delete') { data = await noteStation.deleteAttachment({ objectId: this.getNodeParameter('objectId', i) as string, version: this.getNodeParameter('attachmentVersion', i) as string, fileId: this.getNodeParameter('attachmentFileId', i) as string }); }
+				if (operation !== 'download') { returnData.push({ json: data ?? {}, pairedItem: { item: i } }); continue; }
 				const response = await noteStation.getAttachment({ objectId: this.getNodeParameter('objectId', i) as string, version: this.getNodeParameter('attachmentVersion', i) as string, fileId: this.getNodeParameter('attachmentFileId', i) as string });
 				const buffer = await this.helpers.binaryToBuffer(response.body as Buffer | import('stream').Readable);
 				const headers = response.headers as Record<string, string>;

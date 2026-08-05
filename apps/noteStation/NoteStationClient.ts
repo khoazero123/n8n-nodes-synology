@@ -324,6 +324,23 @@ export class NoteStationClient {
 		);
 	}
 
+	async listAttachments(objectId: string): Promise<NoteStationData> {
+		const note = await this.getNote(objectId);
+		return { object_id: objectId, attachment: note.attachment ?? [] };
+	}
+
+	async uploadAttachment(input: AttachmentInput & { filename: string; data: Buffer; contentType?: string }): Promise<NoteStationData> {
+		return await this.synology.requestMultipart(
+			{ api: NOTE_API, version: NOTE_API_VERSION, method: 'set', session: NOTE_STATION_SESSION, params: { object_id: input.objectId, ver: input.version, attachment: [{ action: 'create', format: 'raw', name: input.filename }] } },
+			{ fieldName: input.filename, filename: input.filename, data: input.data, contentType: input.contentType },
+			{},
+		);
+	}
+
+	async deleteAttachment(input: AttachmentInput): Promise<NoteStationData> {
+		return await this.synology.request({ api: NOTE_API, version: NOTE_API_VERSION, method: 'set', session: NOTE_STATION_SESSION, params: { object_id: input.objectId, ver: input.version, attachment: [{ action: 'delete', file_id: input.fileId }] } });
+	}
+
 	async getAttachment(input: AttachmentInput): Promise<IN8nHttpFullResponse> {
 		return await this.synology.requestBinary({
 			api: NOTE_APPLINK_API,

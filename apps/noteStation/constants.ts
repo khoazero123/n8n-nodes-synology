@@ -1,0 +1,13 @@
+export const NOTE_STATION_SESSION = 'NoteStation';
+export const NOTEBOOK_API = 'SYNO.NoteStation.Notebook';
+export const NOTEBOOK_API_VERSION = 2;
+export const NOTE_API = 'SYNO.NoteStation.Note';
+export const NOTE_API_VERSION = 3;
+export const STACK_API = 'SYNO.NoteStation.Stack';
+export const STACK_API_VERSION = 1;
+export const PERMISSION_API = 'SYNO.NoteStation.Permission';
+export const PERMISSION_API_VERSION = 1;
+export const PUBLIC_PERMISSION_API = 'SYNO.NoteStation.Permission.Public';
+export const PUBLIC_PERMISSION_API_VERSION = 1;
+export const SHARD_LINK_API = 'SYNO.NoteStation.Shard.Link';
+export const SHARD_LINK_API_VERSION = 1;

@@ -1,0 +1,64 @@
+{
+  "name": "n8n-nodes-synology",
+  "version": "0.1.0",
+  "description": "n8n community nodes for Synology NAS applications",
+  "keywords": [
+    "n8n-community-node-package",
+    "synology",
+    "synology-nas",
+    "synology-note-station",
+    "synology-drive",
+    "synology-download-station"
+  ],
+  "license": "MIT",
+  "homepage": "",
+  "author": {
+    "name": "KhoaZero123",
+    "email": "khoazero123@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/megavnet/n8n-nodes-synology.git"
+  },
+  "engines": {
+    "node": ">=20.15"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "npx rimraf dist && tsc && gulp build:icons",
+    "dev": "tsc --watch",
+    "format": "prettier nodes credentials transport apps --write",
+    "lint": "eslint nodes/**/*.ts credentials/**/*.ts package.json",
+    "lintfix": "eslint nodes/**/*.ts credentials/**/*.ts package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes/**/*.ts credentials/**/*.ts package.json",
+    "test:e2e:n8n": "node test/e2e-n8n-workflow.js",
+    "test:e2e:n8n:evaluation": "node test/e2e-n8n-evaluation.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/SynologyApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/SynologyNoteStation/SynologyNoteStation.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.1",
+    "@typescript-eslint/parser": "~8.32.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-n8n-nodes-base": "^1.16.3",
+    "gulp": "^5.0.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "form-data": "^4.0.4"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

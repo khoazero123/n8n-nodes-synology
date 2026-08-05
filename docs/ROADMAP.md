@@ -1,0 +1,73 @@
+# n8n-nodes-synology Roadmap
+
+`n8n-nodes-synology` is an umbrella n8n community node package for Synology NAS applications.
+
+## Architecture
+
+- One npm package: `n8n-nodes-synology`
+- One shared credential: `Synology API`
+- Shared transport layer for DSM/WebAPI login, request, upload, download, and error handling
+- One n8n node per Synology application
+
+Planned nodes:
+
+- Synology Note Station
+- Synology Drive
+- Synology Download Station
+- Synology File Station
+- Synology Photos
+- Synology Calendar
+
+## Phase 1: Note Station
+
+Resources:
+
+- Shelf
+- Notebook
+- Note
+- Share
+- Attachment
+
+Initial implementation order:
+
+1. Auth/session handling with `SYNO.API.Auth`, session `NoteStation`.
+2. Notebook CRUD.
+3. Note CRUD and append/prepend helpers.
+4. Shelf CRUD after endpoint discovery.
+5. Native Note Station encryption support after endpoint/payload discovery.
+6. Public share and user/group share.
+7. Attachment upload/list/download/delete.
+
+Known tested API facts from local NAS discovery:
+
+- Login: `SYNO.API.Auth`, version `7`, method `login`, `session=NoteStation`, `format=sid`.
+- Notebook create: `SYNO.NoteStation.Notebook`, version `2`, method `create`, param `title`.
+- Note create: `SYNO.NoteStation.Note`, version `3`, method `create`, params `title`, `parent_id`, `content`, optional `brief`, `commit_msg`.
+- Create note response may not include the saved content; follow up with `get` when content verification is needed.
+
+## Phase 2: Drive migration
+
+Migrate functionality from `khoazero123/n8n-nodes-synology-drive` into this umbrella package as a `Synology Drive` node, while reusing shared credentials and transport where practical.
+
+Existing Drive operations to preserve:
+
+- List/search files and folders
+- Upload binary data
+- Create text files and folders
+- Download files as binary output
+- Delete files/folders, soft or permanent
+
+## Phase 3: Download Station
+
+Planned operations:
+
+- Create URL/torrent task
+- List/get task
+- Pause/resume/delete task
+- Get task statistics
+
+## Development checks
+
+- `npm run build`
+- `npm run lint`
+- `npm pack --dry-run`

@@ -1,0 +1,110 @@
+# Synology Note Station API Discovery
+
+Discovery source: local NAS package files and Note Station frontend JavaScript.
+
+Package paths:
+
+- `/var/packages/NoteStation/target/webapi/SYNO.NoteStation.lib`
+- `/var/packages/NoteStation/target/webapi/*/*.so`
+- `/usr/syno/synoman/webman/3rdparty/NoteStation/notestation.js`
+
+## Auth
+
+| API | Version | Method | Params | Status |
+| --- | --- | --- | --- | --- |
+| `SYNO.API.Auth` | 7 | `login` | `account`, `passwd`, `session=NoteStation`, `format=sid` | tested previously |
+| `SYNO.API.Auth` | 7 | `logout` | `session=NoteStation` | planned |
+
+## Notebook
+
+| API | Version | Method | Params | Status |
+| --- | --- | --- | --- | --- |
+| `SYNO.NoteStation.Notebook` | 2 | `list` | `filter`, `field`, `offset`, `limit`, `sort_by`, `sort_direction` | implemented |
+| `SYNO.NoteStation.Notebook` | 2 | `get` | `object_id`, optional `link_id` | implemented |
+| `SYNO.NoteStation.Notebook` | 2 | `create` | `title`, `commit_msg` | implemented |
+| `SYNO.NoteStation.Notebook` | 2 | `set` | `object_id`, `title`, `stack`, `commit_msg` | implemented |
+| `SYNO.NoteStation.Notebook` | 2 | `delete` | `object_id`, `recursive` | implemented |
+
+## Note
+
+| API | Version | Method | Params | Status |
+| --- | --- | --- | --- | --- |
+| `SYNO.NoteStation.Note` | 3 | `list` | `filter`, `field`, `offset`, `limit`, `sort_by`, `sort_direction`, `mode`, `stack`, `perm_from`, `smart_id`, `link_id` | implemented |
+| `SYNO.NoteStation.Note` | 3 | `get` | `object_id`, `ver`, `perm_from`, `smart_id` | implemented |
+| `SYNO.NoteStation.Note` | 3 | `create` | `title`, `parent_id`, `encrypt`, `content`, `brief`, `ctime`, `mtime`, `latitude`, `longitude`, `commit_msg` | implemented basic unencrypted |
+| `SYNO.NoteStation.Note` | 3 | `set` | `object_id`, `ver`, `content`, `brief`, `tag`, `title`, `source_url`, `latitude`, `longitude`, `location`, `parent_id`, `encrypt`, `recycle`, `token`, `commit_msg` | implemented basic unencrypted |
+| `SYNO.NoteStation.Note` | 3 | `delete` | `object_id`, `recycle`, `perm_from`, `smart_id` | implemented |
+| `SYNO.NoteStation.Note` | 3 | `restore` | `object_id`, `perm_from`, `smart_id` | planned |
+| `SYNO.NoteStation.Note` | 3 | `copy` | note fields plus `title_postfix`, `old_password`, `new_password` | planned |
+
+## Advanced APIs discovered
+
+| API | Version | Methods | Purpose |
+| --- | --- | --- | --- |
+| `SYNO.NoteStation.Note.Encrypt` | 1 | `create`, `check`, `delete` | Encrypted note token lifecycle |
+| `SYNO.NoteStation.Permission.Public` | 1 | `set`, `delete` | Public permissions/share; params `object_id`, `perm` (`ro`/`rw`) |
+| `SYNO.NoteStation.Permission.User` | 1 | `set`, `delete` | User permissions |
+| `SYNO.NoteStation.Permission.Group` | 1 | `set`, `delete` | Group permissions |
+| `SYNO.NoteStation.Share.Priv` | 2 | `list` | Private shared items |
+| `SYNO.NoteStation.Permission` | 1 | `set` | Enables ACL before setting public/user/group permissions |
+| `SYNO.NoteStation.Shard.Link` | 1 | `get` | Public/private share link retrieval; params `object_id`, `mode` |
+| `SYNO.NoteStation.Stack` | 1 | `set`, `delete` | Shelf/stack management; `set` params `stack_id`, `name`; `delete` param `stack_id` |
+| `SYNO.NoteStation.Shortcut` | 1 | `list`, `set`, `delete` | Shortcuts |
+| `SYNO.NoteStation.Tag` | 2 | `list`, `set`, `delete` | Tags |
+
+## Attachment notes
+
+The frontend uploads attachments through `SYNO.NoteStation.Note` version 3 `set` using `FormData`/`html5upload`.
+
+Important params:
+
+- `object_id`
+- `ver`
+- `attachment`: array of attachment actions
+- file parts keyed by generated names
+- `commit_msg`
+
+Attachment implementation needs a dedicated multipart helper in `SynologyClient`.
+
+## E2E result 2026-08-04
+
+Core CRUD was tested against NAS `192.168.1.175:5000` with temporary data prefix `n8n-nodes-synology E2E 1785850054`.
+
+Passed:
+
+- Notebook create/get/set/list/delete
+- Note create/get/set/list/delete
+- Create note response returned `content: "<div></div>"`, but follow-up `get` returned the real saved HTML content.
+- Temporary test notebook and note were deleted successfully.
+
+Reusable test script: `test/e2e-note-station-core.py`.
+Credentials are provided via env vars only and are not stored in the repo.
+
+
+## n8n Workflow E2E
+
+Reusable n8n workflow-level E2E script: `test/e2e-n8n-workflow.js`.
+
+It automatically:
+
+- Builds this package.
+- Starts an isolated local n8n instance, unless `N8N_BASE_URL` is supplied.
+- Loads the package through n8n's custom-node folder.
+- Sets up/logs in an owner user.
+- Creates a Synology credential from env vars.
+- Creates a real n8n workflow using `CUSTOM.synologyNoteStation`.
+- Executes the workflow.
+- Polls `/rest/executions/:id?includeData=true` and parses execution data with `flatted`.
+- Cleans up the temporary notebook after share tests.
+
+Usage:
+
+```bash
+SYNO_BASE_URL='http://192.168.1.175:5000' SYNO_ACCOUNT='khoa' SYNO_PASS='...' node test/e2e-n8n-workflow.js
+```
+
+Current workflow coverage:
+
+- Notebook create/delete
+- Note create with `Return Full Note`
+- Public share set/get-link/delete

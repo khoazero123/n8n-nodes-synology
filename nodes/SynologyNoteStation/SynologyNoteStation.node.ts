@@ -250,6 +250,11 @@ export class SynologyNoteStation implements INodeType {
 				displayOptions: { show: { resource: ['export'], operation: ['status', 'download'] } },
 			},
 			{
+				displayName: 'Note Object ID', name: 'objectId', type: 'string', required: true, default: '',
+				displayOptions: { show: { resource: ['attachment'] } },
+				description: 'Note object_id',
+			},
+			{
 				displayName: 'Attachment Version', name: 'attachmentVersion', type: 'string', required: true, default: '',
 				displayOptions: { show: { resource: ['attachment'], operation: ['upload', 'download', 'delete'] } },
 			},
@@ -259,8 +264,8 @@ export class SynologyNoteStation implements INodeType {
 			},
 			{
 				displayName: 'Binary Property', name: 'binaryProperty', type: 'string', default: 'data',
-				displayOptions: { show: { resource: ['import'] } },
-				description: 'Input binary property containing the ENEX or Notebook file',
+				displayOptions: { show: { resource: ['import', 'attachment'], operation: ['enex', 'notebook', 'upload'] } },
+				description: 'Input binary property containing the ENEX, Notebook, or attachment file',
 			},
 			{
 				displayName: 'Notebook ID',

@@ -24,6 +24,10 @@ const statisticsOperations = [
 	{ name: 'Get', value: 'get', action: 'Get download statistics and speeds' },
 ];
 
+const infoOperations = [
+	{ name: 'Get', value: 'get', action: 'Get Download Station information' },
+];
+
 export class SynologyDownloadStation implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Synology Download Station',
@@ -45,6 +49,7 @@ export class SynologyDownloadStation implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
+					{ name: 'Info', value: 'info' },
 					{ name: 'Statistic', value: 'statistics' },
 					{ name: 'Task', value: 'task' },
 				],
@@ -66,6 +71,15 @@ export class SynologyDownloadStation implements INodeType {
 				noDataExpression: true,
 				displayOptions: { show: { resource: ['statistics'] } },
 				options: statisticsOperations,
+				default: 'get',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['info'] } },
+				options: infoOperations,
 				default: 'get',
 			},
 			// --- Task ID (used by get, pause, resume, delete) ---
@@ -227,18 +241,24 @@ export class SynologyDownloadStation implements INodeType {
 						additional.length > 0 ? additional : undefined,
 					);
 				} else if (operation === 'pause') {
-					data = await ds.pauseTasks(this.getNodeParameter('taskId', i) as string);
+					data = { task: await ds.pauseTasks(this.getNodeParameter('taskId', i) as string) };
 				} else if (operation === 'resume') {
-					data = await ds.resumeTasks(this.getNodeParameter('taskId', i) as string);
+					data = { task: await ds.resumeTasks(this.getNodeParameter('taskId', i) as string) };
 				} else if (operation === 'delete') {
-					data = await ds.deleteTasks(
-						this.getNodeParameter('taskId', i) as string,
-						this.getNodeParameter('forceComplete', i, false) as boolean,
-					);
+					data = {
+						task: await ds.deleteTasks(
+							this.getNodeParameter('taskId', i) as string,
+							this.getNodeParameter('forceComplete', i, false) as boolean,
+						),
+					};
 				}
 			} else if (resource === 'statistics') {
 				if (operation === 'get') {
 					data = await ds.getStatistics();
+				}
+			} else if (resource === 'info') {
+				if (operation === 'get') {
+					data = await ds.getInfo();
 				}
 			}
 

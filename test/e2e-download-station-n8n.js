@@ -129,8 +129,9 @@ async function main() {
 		const c = { synologyApi: { id: credential.id, name: credential.name } };
 		const nodes = [
 			{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
-			{ name: 'Get Statistics', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'statistics', operation: 'get' }, credentials: c },
-			{ name: 'Get Tasks', type, typeVersion: 1, position: [480, 0], parameters: { resource: 'task', operation: 'getMany', limit: 10 }, credentials: c },
+			{ name: 'Get Info', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'info', operation: 'get' }, credentials: c },
+			{ name: 'Get Statistics', type, typeVersion: 1, position: [480, 0], parameters: { resource: 'statistics', operation: 'get' }, credentials: c },
+			{ name: 'Get Tasks', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'task', operation: 'getMany', limit: 10 }, credentials: c },
 		];
 		const connections = {};
 		for (let i = 0; i < nodes.length - 1; i++) connections[nodes[i].name] = { main: [[{ node: nodes[i + 1].name, type: 'main', index: 0 }]] };
@@ -150,6 +151,14 @@ async function main() {
 		const data = parseExecutionData(execution);
 		const summary = Object.fromEntries(Object.entries(data.resultData.runData).map(([node, runs]) => [node, runs.map((item) => ({ status: item.executionStatus || (item.error ? 'error' : 'success'), error: item.error?.message, json: item.data?.main?.[0]?.map((entry) => entry.json), }))]));
 		console.log(JSON.stringify({ workflowId: workflow.id, executionId: run.executionId, status: execution.status, finished: execution.finished, lastNode: data.resultData.lastNodeExecuted, summary }, null, 2));
+
+		// Verify info output
+		const infoOutput = summary['Get Info']?.[0]?.json?.[0];
+		if (!infoOutput || typeof infoOutput !== 'object') {
+			console.warn('⚠️  Info output did not contain an object');
+		} else {
+			console.log('✅ Download Station info returned');
+		}
 
 		// Verify statistics output
 		const statOutput = summary['Get Statistics']?.[0]?.json?.[0];

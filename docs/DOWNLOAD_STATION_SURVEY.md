@@ -8,7 +8,7 @@ Download Station WebAPI có hai generation API:
 - **V1 (`SYNO.DownloadStation.Task`)**: Documented chính thức (PDF 2014), các method `list`, `getinfo`, `create`, `delete`, `pause`, `resume`, `edit`.
 - **V2 (`SYNO.DownloadStation2.Task`)**: Không có tài liệu chính thức, "reserved for internal use by Synology" nhưng thực tế hoạt động trên DSM 7.x + Download Station 4.x. Path khác (`DownloadStation/entry.cgi` thay vì `DownloadStation/task.cgi`), method `create` dùng `type=url` thay vì `uri`.
 
-**Quyết định:** Ưu tiên implement V1 API (có contract rõ ràng, documented), đồng thời hỗ trợ fallback V2 cho `create` task (nhiều client maintained dùng V2 do V1 `create` bị lỗi trên DSM7 gần đây). Strategy: discover API versions thực tế từ `SYNO.API.Info` query tại runtime.
+**Quyết định:** Phase 1 chỉ implement V1 API (có contract rõ ràng, documented). V2 chỉ được dùng trong bài test destructive có opt-in; chưa đưa fallback V2 vào node vì đây là API internal/undocumented và cần xác minh thêm contract lỗi/response trên từng DSM.
 
 ## 2. Nguồn Tham Khảo Đã Xác Minh
 
@@ -164,7 +164,7 @@ size_downloaded, size_uploaded, speed_download, speed_upload
 | Operation | V1 Method | V2 Method | Input params |
 |-----------|-----------|-----------|--------------|
 | `createUrl` | `create` (uri=) | `create` (type=url) | url, destination? |
-| `createTorrent` | `create` (file=) | `create` (type=file) | binaryPropertyName, destination? |
+| `createTorrent` | `create` (file=) | `create` (type=file) | **Deferred:** cần xác minh multipart contract trước |
 | `getAll` | `list` | `list` | offset?, limit?, additional? |
 | `get` | `getinfo` | `getinfo` | taskId, additional? |
 | `pause` | `pause` | `pause` | taskId |
@@ -278,6 +278,8 @@ nodes/SynologyDownloadStation/
 7.  ~~**Cập nhật `package.json`** thêm node vào `n8n.nodes` và thêm npm scripts test.~~ ✅
 
 ### Implementation Complete (2026-08-05)
+
+Phase 1 intentionally covers the safe, documented V1 operations. URL creation is implemented with V1 only; V2 fallback and torrent upload remain explicitly deferred until their undocumented/multipart contracts are verified.
 
 - `apps/downloadStation/constants.ts` — API strings, session name, task status map, additional fields
 - `apps/downloadStation/types.ts` — TypeScript interfaces for tasks, statistics, inputs

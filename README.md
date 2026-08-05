@@ -51,7 +51,12 @@ Drive uses the shared **Synology API** credential. Its application REST API uses
 
 ### Synology Download Station
 
-Planned.
+- Create URL or magnet-link download tasks
+- List and get task details
+- Pause, resume, and delete tasks
+- Get current download/upload statistics
+
+The node currently uses the documented Download Station V1 APIs. Torrent-file upload and undocumented V2 create fallback remain pending contract verification.
 
 ## Credentials
 

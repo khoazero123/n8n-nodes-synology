@@ -4,8 +4,10 @@ Tests auth, API discovery, task CRUD, and statistics against a live NAS.
 
 Usage:
   SYNO_BASE_URL=http://192.168.1.175:5000 SYNO_ACCOUNT=khoa SYNO_PASS=... python3 test/e2e-download-station-core.py
+  ALLOW_DESTRUCTIVE_DS_E2E=1 SYNO_BASE_URL=... SYNO_ACCOUNT=... SYNO_PASS=... python3 test/e2e-download-station-core.py
 
 Credentials are provided via environment variables only and are not stored in the repo.
+Task creation/pause/resume/deletion is opt-in via ALLOW_DESTRUCTIVE_DS_E2E=1; the default run is read-only.
 """
 
 import os
@@ -22,6 +24,7 @@ ACCOUNT = os.environ.get("SYNO_ACCOUNT", "")
 PASSWORD = os.environ.get("SYNO_PASS", "")
 
 TEST_PREFIX = f"n8n-e2e-ds-{uuid.uuid4().hex[:8]}"
+ALLOW_DESTRUCTIVE = os.environ.get("ALLOW_DESTRUCTIVE_DS_E2E") == "1"
 
 failures = 0
 
@@ -106,47 +109,63 @@ def main():
     else:
         fail(f"Statistics failed: {stat_resp.get('error')}")
 
-    # 4. Create a URL task
-    print("\n📡 4. Create URL Task (SYNO.DownloadStation.Task v3)...")
-    test_url = "https://httpbin.org/bytes/1024"
-    create_resp = api_request("DownloadStation/task.cgi", {
+    # 4. List tasks (safe read-only check)
+    print("\n📡 4. List Tasks (read-only)...")
+    list_resp = api_request("DownloadStation/task.cgi", {
         "api": "SYNO.DownloadStation.Task",
         "version": "3",
-        "method": "create",
-        "uri": test_url,
+        "method": "list",
         "_sid": sid,
     })
-    task_id = None
-    if create_resp.get("success"):
-        task_id = create_resp.get("data", {}).get("task_id") or create_resp.get("data", {}).get("id")
-        if not task_id and isinstance(create_resp.get("data"), list):
-            task_id = create_resp["data"][0].get("id") if create_resp["data"] else None
-        ok(f"Task created: id={task_id}")
+    if list_resp.get("success"):
+        ok(f"Found {len(list_resp.get('data', {}).get('tasks', []))} tasks")
     else:
-        fail(f"V1 create failed: {create_resp.get('error')}")
+        fail(f"List failed: {list_resp.get('error')}")
 
-    if not task_id:
-        # 5. Try V2 create
-        print("\n📡 5. Try V2 Create (SYNO.DownloadStation2.Task v2)...")
-        v2_resp = api_request("DownloadStation/entry.cgi", {
-            "api": "SYNO.DownloadStation2.Task",
-            "version": "2",
+    task_id = None
+    if ALLOW_DESTRUCTIVE:
+        # 5. Create a URL task. This creates a real NAS task and is opt-in.
+        print("\n📡 5. Create URL Task (SYNO.DownloadStation.Task v3)...")
+        test_url = "https://httpbin.org/bytes/1024"
+        create_resp = api_request("DownloadStation/task.cgi", {
+            "api": "SYNO.DownloadStation.Task",
+            "version": "3",
             "method": "create",
-            "type": "url",
-            "url": test_url,
+            "uri": test_url,
             "_sid": sid,
         })
-        if v2_resp.get("success"):
-            task_id = v2_resp.get("data", {}).get("task_id") or v2_resp.get("data", {}).get("id")
-            if isinstance(v2_resp.get("data"), list) and v2_resp["data"]:
-                task_id = v2_resp["data"][0].get("id")
-            ok(f"V2 Task created: id={task_id}")
+        if create_resp.get("success"):
+            task_id = create_resp.get("data", {}).get("task_id") or create_resp.get("data", {}).get("id")
+            if not task_id and isinstance(create_resp.get("data"), list):
+                task_id = create_resp["data"][0].get("id") if create_resp["data"] else None
+            ok(f"Task created: id={task_id}")
         else:
-            fail(f"V2 create also failed: {v2_resp.get('error')}")
+            print(f"  ⚠️  V1 create failed: {create_resp.get('error')}; trying undocumented V2")
+
+        if not task_id:
+            # 6. Try V2 create only in the explicitly enabled destructive test.
+            print("\n📡 6. Try V2 Create (SYNO.DownloadStation2.Task v2)...")
+            v2_resp = api_request("DownloadStation/entry.cgi", {
+                "api": "SYNO.DownloadStation2.Task",
+                "version": "2",
+                "method": "create",
+                "type": "url",
+                "url": test_url,
+                "_sid": sid,
+            })
+            if v2_resp.get("success"):
+                task_id = v2_resp.get("data", {}).get("task_id") or v2_resp.get("data", {}).get("id")
+                if isinstance(v2_resp.get("data"), list) and v2_resp["data"]:
+                    task_id = v2_resp["data"][0].get("id")
+                ok(f"V2 Task created: id={task_id}")
+            else:
+                fail(f"V2 create also failed: {v2_resp.get('error')}")
+    else:
+        print("\n⏭️  Skipping create/pause/resume/delete (set ALLOW_DESTRUCTIVE_DS_E2E=1 to opt in).")
 
     if task_id:
-        # 6. List tasks
-        print("\n📡 6. List Tasks...")
+        # 7. List tasks after creation
+        print("\n📡 7. List Tasks after creation...")
         list_resp = api_request("DownloadStation/task.cgi", {
             "api": "SYNO.DownloadStation.Task",
             "version": "3",
@@ -159,8 +178,8 @@ def main():
         else:
             fail(f"List failed: {list_resp.get('error')}")
 
-        # 7. Get task info
-        print("\n📡 7. Get Task...")
+        # 8. Get task info
+        print("\n📡 8. Get Task...")
         get_resp = api_request("DownloadStation/task.cgi", {
             "api": "SYNO.DownloadStation.Task",
             "version": "3",
@@ -179,8 +198,8 @@ def main():
         else:
             fail(f"Get failed: {get_resp.get('error')}")
 
-        # 8. Pause task
-        print("\n📡 8. Pause Task...")
+        # 9. Pause task
+        print("\n📡 9. Pause Task...")
         pause_resp = api_request("DownloadStation/task.cgi", {
             "api": "SYNO.DownloadStation.Task",
             "version": "3",
@@ -193,8 +212,8 @@ def main():
         else:
             fail(f"Pause failed: {pause_resp.get('error')}")
 
-        # 9. Resume task
-        print("\n📡 9. Resume Task...")
+        # 10. Resume task
+        print("\n📡 10. Resume Task...")
         resume_resp = api_request("DownloadStation/task.cgi", {
             "api": "SYNO.DownloadStation.Task",
             "version": "3",
@@ -207,8 +226,8 @@ def main():
         else:
             fail(f"Resume failed: {resume_resp.get('error')}")
 
-        # 10. Delete task
-        print("\n📡 10. Delete Task...")
+        # 11. Delete task
+        print("\n📡 11. Delete Task...")
         delete_resp = api_request("DownloadStation/task.cgi", {
             "api": "SYNO.DownloadStation.Task",
             "version": "3",

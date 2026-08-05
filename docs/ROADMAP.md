@@ -101,10 +101,10 @@ The Download Station node is implemented and passes build, lint, and package dry
 
 ### Pending
 
-- Run the destructive direct CRUD E2E only with explicit approval (it creates and deletes a real NAS task); the read-only n8n workflow E2E is available and has passed locally
+- Run the destructive direct CRUD E2E only with explicit approval (it creates and deletes a real NAS task); the default direct test is now read-only
 - Binary torrent file upload (`create` with multipart/file param)
 - V1 `create` verification on local NAS (may fail on DSM7; V2 fallback if needed)
-- Resource-level operations: `info` (getConfig, setConfig), `schedule`, `rss`, `btSearch`
+- Resource-level operations: `info` config mutations (`getConfig`, `setConfig`), `schedule`, `rss`, `btSearch`
 
 ## Development checks
 

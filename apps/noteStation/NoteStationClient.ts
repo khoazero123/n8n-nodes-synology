@@ -330,10 +330,24 @@ export class NoteStationClient {
 	}
 
 	async uploadAttachment(input: AttachmentInput & { filename: string; data: Buffer; contentType?: string }): Promise<NoteStationData> {
+		// The DSM Note Station frontend uses a unique multipart field name in the
+		// attachment metadata and the original filename as the file-part key.
+		const multipartFieldName = `attachment_${Date.now()}`;
 		return await this.synology.requestMultipart(
-			{ api: NOTE_API, version: NOTE_API_VERSION, method: 'set', session: NOTE_STATION_SESSION, params: { object_id: input.objectId, ver: input.version, attachment: [{ action: 'create', format: 'raw', name: input.filename }] } },
+			{
+				api: NOTE_API,
+				version: NOTE_API_VERSION,
+				method: 'set',
+				session: NOTE_STATION_SESSION,
+				params: {
+					object_id: input.objectId,
+					ver: input.version,
+					commit_msg: { device: 'n8n', listable: false },
+					attachment: [{ action: 'create', format: 'raw', name: multipartFieldName }],
+				},
+			},
 			{ fieldName: input.filename, filename: input.filename, data: input.data, contentType: input.contentType },
-			{},
+			{ html5upload: 'true' },
 		);
 	}
 

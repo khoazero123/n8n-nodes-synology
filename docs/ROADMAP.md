@@ -20,7 +20,7 @@ Planned nodes:
 
 ## Phase 1: Note Station — baseline complete, feature parity pending
 
-The initial Note Station node is implemented and passes the real n8n workflow E2E against the target NAS. The phase is **not yet feature-complete**: attachments and dedicated real E2E coverage remain pending. Encryption and import/export baseline operations are now implemented against the discovered Note Station contracts.
+The initial Note Station node is implemented and passes the real n8n workflow E2E against the target NAS. The phase is **not yet feature-complete**: attachment CRUD is implemented and now has dedicated E2E coverage, but the target NAS currently blocks the upload path with `code=105`, `errors.synodrive=0`. Encryption and import/export baseline operations are implemented against the discovered Note Station contracts.
 
 ### Implemented and E2E-tested
 
@@ -45,7 +45,8 @@ Real E2E coverage currently verifies notebook/note lifecycle, append, version li
 
 ### Still pending
 
-- Dedicated real E2E coverage for encryption, import/export, attachment CRUD, version restore, recycle-bin restore, and user/group share mutation. Shelf operations are implemented but blocked on NAS API error 1032 (`synodrive`) during direct and n8n E2E probes.
+- Re-run dedicated attachment binary E2E after the NAS Synology Drive dependency is repaired; current run creates a temporary notebook/note, reaches upload, then receives `SYNO.NoteStation.Note.set` error `105` with `errors.synodrive=0` and cleans up.
+- Dedicated real E2E coverage for encryption, import/export, version restore, recycle-bin restore, and user/group share mutation. Shelf operations remain blocked on NAS API error 1032 (`synodrive`) during direct and n8n E2E probes.
 
 Known tested API facts from local NAS discovery:
 

@@ -15,3 +15,5 @@
 - **Context**: Probing the NAS Download Station API from a shell command.
 - **What happened**: The tool call passed literal `\\n` sequences into a Python heredoc, causing a syntax error.
 - **Fix**: Use a simple `python3 -c` probe or a properly literal multiline command; verify the command before relying on its output.
+
+- 2026-08-05: Initial remote frontend grep probe failed because a quoted heredoc was escaped incorrectly inside the SSH command. Retry with a one-line remote Python command or a temporary script.

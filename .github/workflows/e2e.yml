@@ -169,6 +169,15 @@ jobs:
           N8N_OWNER_EMAIL: synology-ci-e2e@example.com
           N8N_OWNER_PASSWORD: N8nCiE2e-ChangeMe-2026!
 
+      # Optional until the target NAS Synology Drive dependency is healthy.
+      - name: Note Station attachment binary n8n Workflow E2E
+        if: vars.SYNO_NOTE_ATTACHMENT_E2E == 'true'
+        run: npm run test:e2e:n8n:notestation:attachments
+        env:
+          N8N_BASE_URL: http://127.0.0.1:5680
+          N8N_OWNER_EMAIL: synology-ci-e2e@example.com
+          N8N_OWNER_PASSWORD: N8nCiE2e-ChangeMe-2026!
+
       - name: Download Station n8n Workflow E2E
         run: npm run test:e2e:ds:n8n
         env:

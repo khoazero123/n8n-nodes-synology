@@ -54,17 +54,14 @@ Package paths:
 
 ## Attachment notes
 
-The frontend uploads attachments through `SYNO.NoteStation.Note` version 3 `set` using `FormData`/`html5upload`.
+The implemented node/client attachment contract is:
 
-Important params:
+- List: `SYNO.NoteStation.Note` v3 `get`, returning `data.attachment` from the note payload.
+- Upload: `SYNO.NoteStation.Note` v3 `set` as multipart `FormData`, with `html5upload=true`, params `object_id`, `ver`, `commit_msg`, and `attachment: [{ action: 'create', format: 'raw', name: <unique multipart field name> }]`; the uploaded file part is keyed by the original filename. This mirrors the DSM Note Station frontend contract.
+- Download/get: `SYNO.NoteStation.AppLink` v1 `get`, posted to `webapi/entry.cgi` with `object_id`, `ver`, `file_id`, optional `token`, and binary response handling.
+- Delete: `SYNO.NoteStation.Note` v3 `set`, with params `object_id`, `ver`, and `attachment: [{ action: 'delete', file_id: <file_id> }]`.
 
-- `object_id`
-- `ver`
-- `attachment`: array of attachment actions
-- file parts keyed by generated names
-- `commit_msg`
-
-Attachment implementation needs a dedicated multipart helper in `SynologyClient`.
+Reusable n8n workflow-level attachment binary E2E script: `test/e2e-n8n-notestation-attachments.js`. It creates a temporary notebook/note, generates a binary input in n8n, uploads it as a Note Station attachment, lists attachments, downloads by `file_id`, verifies downloaded bytes, and cleans up attachment/note/notebook in `finally`. On the current NAS, the upload probe is blocked by `SYNO.NoteStation.Note.set` error `105` with `errors.synodrive=0`; keep this E2E optional until the Synology Drive dependency is healthy.
 
 ## E2E result 2026-08-04
 

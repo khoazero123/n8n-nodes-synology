@@ -84,7 +84,10 @@ export class SynologyClient {
 		chunks.push(Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="${file.fieldName}"; filename="${file.filename.replace(/"/g, '')}"${crlf}Content-Type: ${file.contentType ?? 'application/octet-stream'}${crlf}${crlf}`));
 		chunks.push(file.data, Buffer.from(crlf), Buffer.from(`--${boundary}--${crlf}`));
 		const response = await this.executeFunctions.helpers.httpRequest({ method: 'POST', url: `${this.credentials.baseUrl.replace(/\/$/, '')}/webapi/entry.cgi`, headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: Buffer.concat(chunks), json: true, skipSslCertificateValidation: this.credentials.allowUnauthorizedCerts ?? false }) as SynologyApiResponse<IDataObject>;
-		if (!response.success) throw new NodeApiError(this.executeFunctions.getNode(), response as unknown as JsonObject, { message: `Synology API call failed: ${request.api}.${request.method}` });
+		if (!response.success) {
+			const detail = response.error ? `: ${JSON.stringify(response.error)}` : '';
+			throw new NodeApiError(this.executeFunctions.getNode(), response as unknown as JsonObject, { message: `Synology API call failed: ${request.api}.${request.method}${detail}` });
+		}
 		return response.data ?? {};
 	}
 

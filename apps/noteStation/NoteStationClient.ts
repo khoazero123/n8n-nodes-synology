@@ -247,7 +247,7 @@ export class NoteStationClient {
 
 	async getVersion(input: VersionInput): Promise<NoteStationData> {
 		const params: IDataObject = { object_id: input.objectId };
-		if (input.version) params.version = input.version;
+		if (input.version) params.ver = input.version;
 		return await this.synology.request({
 			api: NOTE_VERSION_API,
 			version: NOTE_VERSION_API_VERSION,
@@ -263,7 +263,7 @@ export class NoteStationClient {
 			version: NOTE_VERSION_API_VERSION,
 			method: 'restore',
 			session: NOTE_STATION_SESSION,
-			params: { object_id: input.objectId, version: input.version },
+			params: { object_id: input.objectId, ver: input.version }
 		});
 	}
 

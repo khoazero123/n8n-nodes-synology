@@ -1,16 +1,126 @@
 #!/usr/bin/env node
 /* Synology Drive n8n workflow E2E smoke test. */
 /* eslint-disable no-console */
+const { spawn, spawnSync } = require('child_process');
+const fs = require('fs');
 const http = require('http');
+const net = require('net');
+const os = require('os');
+const path = require('path');
 const crypto = require('crypto');
 
-const BASE_URL = process.env.N8N_BASE_URL || 'http://127.0.0.1:5680';
-const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'admin@example.com';
-const OWNER_PASSWORD = process.env.N8N_OWNER_PASSWORD;
-const REQUIRED = ['SYNO_BASE_URL', 'SYNO_ACCOUNT', 'SYNO_PASS', 'N8N_OWNER_PASSWORD'];
+const REPO_ROOT = path.resolve(__dirname, '..');
+const N8N_VERSION = process.env.N8N_VERSION || 'latest';
+const PORT = Number(process.env.N8N_PORT || 5681);
+const HOST = process.env.N8N_HOST || '127.0.0.1';
+const BASE_URL = process.env.N8N_BASE_URL || `http://${HOST}:${PORT}`;
+const USER_FOLDER = process.env.N8N_USER_FOLDER || path.join(os.tmpdir(), `n8n-synology-drive-e2e-${Date.now()}`);
+const N8N_PROJECT = process.env.N8N_PROJECT || path.join(USER_FOLDER, 'project');
+const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-drive-e2e@example.com';
+const OWNER_PASSWORD = process.env.N8N_OWNER_PASSWORD || `N8nDriveE2e-${crypto.randomBytes(12).toString('hex')}!`;
+const REQUIRED = ['SYNO_BASE_URL', 'SYNO_ACCOUNT', 'SYNO_PASS'];
+const startedByScript = !process.env.N8N_BASE_URL;
 let cookie = '';
+let n8nProcess;
 
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+function run(command, args, options = {}) {
+	const result = spawnSync(command, args, { stdio: 'inherit', ...options });
+	if (result.status !== 0) throw new Error(`Command failed: ${command} ${args.join(' ')}`);
+}
+
+function portOpen() {
+	return new Promise((resolve) => {
+		const socket = net.connect(PORT, HOST);
+		socket.once('connect', () => { socket.destroy(); resolve(true); });
+		socket.once('error', () => resolve(false));
+		socket.setTimeout(1000, () => { socket.destroy(); resolve(false); });
+	});
+}
+
+async function waitForN8n() {
+	for (let i = 0; i < 90; i++) {
+		try {
+			const response = await request('GET', '/healthz', undefined, false);
+			if (response.statusCode === 200) return;
+		} catch {}
+		await sleep(1000);
+	}
+	throw new Error('Timed out waiting for n8n healthz');
+}
+
+function copyCustomNode() {
+	const dest = path.join(USER_FOLDER, '.n8n', 'custom', 'n8n-nodes-synology');
+	fs.rmSync(dest, { recursive: true, force: true });
+	fs.mkdirSync(path.dirname(dest), { recursive: true });
+	run('npm', ['run', 'build'], { cwd: REPO_ROOT });
+	run('cp', ['-a', REPO_ROOT, dest]);
+	fs.rmSync(path.join(dest, 'node_modules'), { recursive: true, force: true });
+	run('npm', ['install', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: dest });
+}
+
+function ensureN8n() {
+	fs.mkdirSync(N8N_PROJECT, { recursive: true });
+	const pkg = path.join(N8N_PROJECT, 'package.json');
+	if (!fs.existsSync(pkg)) fs.writeFileSync(pkg, JSON.stringify({ private: true, dependencies: {} }, null, 2));
+	const bin = path.join(N8N_PROJECT, 'node_modules', '.bin', 'n8n');
+	if (!fs.existsSync(bin)) run('npm', ['install', `n8n@${N8N_VERSION}`], { cwd: N8N_PROJECT });
+	return bin;
+}
+
+async function startN8n() {
+	if (!startedByScript) {
+		await waitForN8n();
+		return;
+	}
+	if (await portOpen()) throw new Error(`Port ${PORT} is already in use. Set N8N_PORT or N8N_BASE_URL.`);
+	copyCustomNode();
+	const bin = ensureN8n();
+	n8nProcess = spawn(bin, ['start'], {
+		cwd: N8N_PROJECT,
+		env: {
+			...process.env,
+			N8N_USER_FOLDER: USER_FOLDER,
+			N8N_PORT: String(PORT),
+			N8N_HOST: HOST,
+			N8N_PROTOCOL: 'http',
+			N8N_SECURE_COOKIE: 'false',
+			N8N_DIAGNOSTICS_ENABLED: 'false',
+			N8N_VERSION_NOTIFICATIONS_ENABLED: 'false',
+			N8N_PERSONALIZATION_ENABLED: 'false',
+			N8N_TEMPLATES_ENABLED: 'false',
+			N8N_LOG_LEVEL: process.env.N8N_LOG_LEVEL || 'info',
+			N8N_RUNNERS_ENABLED: 'false',
+		},
+		stdio: ['ignore', 'pipe', 'pipe'],
+	});
+	n8nProcess.stdout.on('data', (data) => process.stdout.write(`[n8n] ${data}`));
+	n8nProcess.stderr.on('data', (data) => process.stderr.write(`[n8n] ${data}`));
+	await waitForN8n();
+}
+
+async function waitForRestApi() {
+	for (let i = 0; i < 90; i++) {
+		const response = await request('GET', '/rest/settings', undefined, false);
+		if (response.statusCode === 200 && !response.raw.includes('n8n is starting up')) return;
+		await sleep(1000);
+	}
+	throw new Error('Timed out waiting for n8n REST API readiness');
+}
+
+async function setupOwnerAndLogin() {
+	await waitForRestApi();
+	const setup = await request('POST', '/rest/owner/setup', {
+		email: OWNER_EMAIL,
+		firstName: 'Synology',
+		lastName: 'Drive E2E',
+		password: OWNER_PASSWORD,
+	}, false);
+	if (![200, 400].includes(setup.statusCode)) throw new Error(`Owner setup failed: ${setup.statusCode} ${setup.raw}`);
+	const login = await request('POST', '/rest/login', { emailOrLdapLoginId: OWNER_EMAIL, password: OWNER_PASSWORD }, false);
+	if (login.statusCode !== 200) throw new Error(`Login failed: ${login.statusCode} ${login.raw}`);
+}
 
 function request(method, route, body, auth = true) {
 	return new Promise((resolve, reject) => {
@@ -70,7 +180,8 @@ async function main() {
 	const missing = REQUIRED.filter((key) => !process.env[key]);
 	if (missing.length) throw new Error(`Missing required env vars: ${missing.join(', ')}`);
 
-	await api('POST', '/rest/login', { emailOrLdapLoginId: OWNER_EMAIL, password: OWNER_PASSWORD }, [200], false);
+	await startN8n();
+	await setupOwnerAndLogin();
 
 	const unique = `${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
 	const folder = `/mydrive/n8n-drive-node-e2e-${unique}`;
@@ -126,4 +237,6 @@ async function main() {
 	}
 }
 
-main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; });
+main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; }).finally(() => {
+	if (n8nProcess) n8nProcess.kill('SIGTERM');
+});

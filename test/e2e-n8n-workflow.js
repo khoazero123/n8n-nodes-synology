@@ -108,6 +108,7 @@ function copyCustomNode() {
 	run('npm', ['run', 'build'], { cwd: REPO_ROOT });
 	run('cp', ['-a', REPO_ROOT, dest]);
 	fs.rmSync(path.join(dest, 'node_modules'), { recursive: true, force: true });
+	run('npm', ['install', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: dest });
 }
 
 function ensureN8n() {
@@ -156,7 +157,17 @@ async function startN8n() {
 	await waitForN8n();
 }
 
+async function waitForRestApi() {
+	for (let i = 0; i < 90; i++) {
+		const response = await request('GET', '/rest/settings', undefined, false);
+		if (response.statusCode === 200 && !response.raw.includes('n8n is starting up')) return;
+		await wait(1000);
+	}
+	throw new Error('Timed out waiting for n8n REST API readiness');
+}
+
 async function setupOwnerAndLogin() {
+	await waitForRestApi();
 	const setup = await request('POST', '/rest/owner/setup', {
 		email: OWNER_EMAIL,
 		firstName: 'Synology',

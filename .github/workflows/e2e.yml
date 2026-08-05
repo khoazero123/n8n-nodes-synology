@@ -1,0 +1,80 @@
+name: e2e
+
+on:
+  workflow_dispatch:
+    inputs:
+      n8n_version:
+        description: n8n version to install for workflow E2E tests
+        required: false
+        default: latest
+  workflow_call:
+    inputs:
+      n8n_version:
+        description: n8n version to install for workflow E2E tests
+        required: false
+        type: string
+        default: latest
+    secrets:
+      SYNO_BASE_URL:
+        required: true
+      SYNO_ACCOUNT:
+        required: true
+      SYNO_PASS:
+        required: true
+      SYNO_ALLOW_UNAUTHORIZED_CERTS:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      N8N_VERSION: ${{ inputs.n8n_version || 'latest' }}
+      SYNO_BASE_URL: ${{ secrets.SYNO_BASE_URL }}
+      SYNO_ACCOUNT: ${{ secrets.SYNO_ACCOUNT }}
+      SYNO_PASS: ${{ secrets.SYNO_PASS }}
+      SYNO_ALLOW_UNAUTHORIZED_CERTS: ${{ secrets.SYNO_ALLOW_UNAUTHORIZED_CERTS || 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Verify required Synology secrets
+        run: |
+          missing=0
+          for name in SYNO_BASE_URL SYNO_ACCOUNT SYNO_PASS; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required GitHub secret: $name" >&2
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: n8n community node lint
+        run: npx @n8n/node-cli@latest lint
+
+      - name: Package dry run
+        run: npm pack --dry-run
+
+      - name: Direct Drive API E2E
+        run: npm run test:e2e:drive:direct
+
+      - name: Drive n8n Workflow E2E
+        run: npm run test:e2e:drive:n8n

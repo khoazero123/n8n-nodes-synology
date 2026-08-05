@@ -52,3 +52,35 @@ jobs:
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  post-publish-scan:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Wait for npm registry latest to match this version
+        run: |
+          PACKAGE_NAME="$(node -p "require('./package.json').name")"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          for attempt in $(seq 1 30); do
+            PUBLISHED_VERSION="$(npm view "$PACKAGE_NAME" version 2>/dev/null || true)"
+            if [ "$PUBLISHED_VERSION" = "$PACKAGE_VERSION" ]; then
+              echo "$PACKAGE_NAME@$PACKAGE_VERSION is available as npm latest"
+              exit 0
+            fi
+            echo "Waiting for npm latest to become $PACKAGE_NAME@$PACKAGE_VERSION (attempt $attempt/30, current: ${PUBLISHED_VERSION:-none})..."
+            sleep 10
+          done
+          echo "npm latest did not become $PACKAGE_NAME@$PACKAGE_VERSION in time" >&2
+          exit 1
+
+      - name: n8n community package scan
+        run: npx @n8n/scan-community-package@latest "$(node -p "require('./package.json').name")"

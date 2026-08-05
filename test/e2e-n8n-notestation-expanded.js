@@ -1,27 +1,15 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 
-const { spawn, spawnSync } = require('child_process');
 const crypto = require('crypto');
-const fs = require('fs');
 const http = require('http');
-const net = require('net');
-const os = require('os');
-const path = require('path');
-
-const REPO_ROOT = path.resolve(__dirname, '..');
-const N8N_VERSION = process.env.N8N_VERSION || '2.33.3';
 const PORT = Number(process.env.N8N_PORT || 5681);
 const HOST = process.env.N8N_HOST || '127.0.0.1';
-const BASE_URL = process.env.N8N_BASE_URL || `http://${HOST}:${PORT}`;
-const USER_FOLDER = process.env.N8N_USER_FOLDER || path.join(os.tmpdir(), `n8n-synology-e2e-${Date.now()}`);
-const N8N_PROJECT = process.env.N8N_PROJECT || path.join(USER_FOLDER, 'project');
+const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-e2e@example.com';
 const OWNER_PASSWORD = process.env.N8N_OWNER_PASSWORD || `N8nE2e-${crypto.randomBytes(12).toString('hex')}!`;
 const SYNologyRequiredEnv = ['SYNO_BASE_URL', 'SYNO_ACCOUNT', 'SYNO_PASS'];
-const startedByScript = !process.env.N8N_BASE_URL;
 let authCookie = '';
-let n8nProcess;
 
 function requireEnv() {
 	const missing = SYNologyRequiredEnv.filter((name) => !process.env[name]);
@@ -30,24 +18,8 @@ function requireEnv() {
 	}
 }
 
-function run(command, args, options = {}) {
-	const result = spawnSync(command, args, { stdio: 'inherit', ...options });
-	if (result.status !== 0) {
-		throw new Error(`Command failed: ${command} ${args.join(' ')}`);
-	}
-}
-
 function wait(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function portOpen() {
-	return new Promise((resolve) => {
-		const socket = net.connect(PORT, HOST);
-		socket.once('connect', () => { socket.destroy(); resolve(true); });
-		socket.once('error', () => resolve(false));
-		socket.setTimeout(1000, () => { socket.destroy(); resolve(false); });
-	});
 }
 
 async function waitForN8n() {
@@ -101,59 +73,10 @@ async function api(method, route, body, ok = [200]) {
 	return response.json.data ?? response.json;
 }
 
-function copyCustomNode() {
-	const dest = path.join(USER_FOLDER, '.n8n', 'custom', 'n8n-nodes-synology');
-	fs.rmSync(dest, { recursive: true, force: true });
-	fs.mkdirSync(path.dirname(dest), { recursive: true });
-	run('npm', ['run', 'build'], { cwd: REPO_ROOT });
-	run('cp', ['-a', REPO_ROOT, dest]);
-	fs.rmSync(path.join(dest, 'node_modules'), { recursive: true, force: true });
-	run('npm', ['install', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: dest });
-}
-
-function ensureN8n() {
-	fs.mkdirSync(N8N_PROJECT, { recursive: true });
-	const pkg = path.join(N8N_PROJECT, 'package.json');
-	if (!fs.existsSync(pkg)) {
-		fs.writeFileSync(pkg, JSON.stringify({ private: true, dependencies: {} }, null, 2));
-	}
-	const bin = path.join(N8N_PROJECT, 'node_modules', '.bin', 'n8n');
-	if (!fs.existsSync(bin)) {
-		run('npm', ['install', `n8n@${N8N_VERSION}`], { cwd: N8N_PROJECT });
-	}
-	return bin;
-}
-
 async function startN8n() {
-	if (!startedByScript) {
-		await waitForN8n();
-		return;
+	if (!BASE_URL) {
+		throw new Error('Docker-only E2E: set N8N_BASE_URL to an existing n8n container');
 	}
-	if (await portOpen()) {
-		throw new Error(`Port ${PORT} is already in use. Set N8N_PORT or N8N_BASE_URL.`);
-	}
-	copyCustomNode();
-	const bin = ensureN8n();
-	n8nProcess = spawn(bin, ['start'], {
-		cwd: N8N_PROJECT,
-		env: {
-			...process.env,
-			N8N_USER_FOLDER: USER_FOLDER,
-			N8N_PORT: String(PORT),
-			N8N_HOST: HOST,
-			N8N_PROTOCOL: 'http',
-			N8N_SECURE_COOKIE: 'false',
-			N8N_DIAGNOSTICS_ENABLED: 'false',
-			N8N_VERSION_NOTIFICATIONS_ENABLED: 'false',
-			N8N_PERSONALIZATION_ENABLED: 'false',
-			N8N_TEMPLATES_ENABLED: 'false',
-			N8N_LOG_LEVEL: process.env.N8N_LOG_LEVEL || 'info',
-			N8N_RUNNERS_ENABLED: 'false',
-		},
-		stdio: ['ignore', 'pipe', 'pipe'],
-	});
-	n8nProcess.stdout.on('data', (data) => process.stdout.write(`[n8n] ${data}`));
-	n8nProcess.stderr.on('data', (data) => process.stderr.write(`[n8n] ${data}`));
 	await waitForN8n();
 }
 
@@ -249,12 +172,7 @@ async function runWorkflow(workflowId) {
 }
 
 function parseExecutionData(execution) {
-	let parse;
-	try {
-		({ parse } = require('flatted'));
-	} catch {
-		({ parse } = require(path.join(N8N_PROJECT, 'node_modules', 'flatted')));
-	}
+	const { parse } = require('flatted');
 	return typeof execution.data === 'string' ? parse(execution.data) : execution.data;
 }
 
@@ -290,6 +208,4 @@ async function main() {
 main().catch((error) => {
 	console.error(error.stack || error.message);
 	process.exitCode = 1;
-}).finally(() => {
-	if (n8nProcess) n8nProcess.kill('SIGTERM');
 });

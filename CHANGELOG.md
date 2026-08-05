@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 For releases prior to v0.0.2, please refer to the git commit history.
 
+## [0.0.8] - 2026-08-05
+
+### Fixed
+- Reused the Docker n8n runtime and a stable CI owner account for all n8n workflow E2E suites.
+
 ## [0.0.7] - 2026-08-05
 
 ### Fixed

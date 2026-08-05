@@ -28,10 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 For releases prior to v0.0.2, please refer to the git commit history.
 
-## [0.0.3] - Unreleased
+## [0.0.3] - 2026-08-05
 
 ### Added
 - Integrated the Synology Drive node into the umbrella package.
 - Reused the shared `Synology API` credential.
 - Added Drive application-session authentication with `id` and `did` cookies.
 - Registered Synology Drive in the package manifest alongside Note Station.
+- Added direct Synology Drive REST API and n8n workflow E2E tests.
+- Added a reusable GitHub Actions E2E workflow for manual runs and release gating.
+
+### Changed
+- Updated the E2E harness to install and manage a local n8n instance automatically.
+- Configured the release workflow to publish only after the E2E gate succeeds.

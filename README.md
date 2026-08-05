@@ -27,8 +27,6 @@ Current implementation includes:
 
 ### Synology Drive
 
-Migrated from: https://github.com/khoazero123/n8n-nodes-synology-drive
-
 Supported file operations:
 
 - List files and folders

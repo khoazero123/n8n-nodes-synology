@@ -39,10 +39,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 For releases prior to v0.0.2, please refer to the git commit history.
 
+## [0.0.6] - 2026-08-05
+
+### Fixed
+- Alphabetized the Note Station resource selector so the community-node lint gate passes.
+- Kept the expanded Note Station E2E harness Docker-only; it requires `N8N_BASE_URL` and never installs n8n on the host.
+
 ## [0.0.5] - 2026-08-05
 
 ### Changed
-- Made the expanded Note Station E2E harness Docker-only; it now requires `N8N_BASE_URL` and never installs n8n on the host.
+- Prepared the Docker-only expanded Note Station E2E harness and release workflow integration.
 
 ## [0.0.4] - 2026-08-05
 

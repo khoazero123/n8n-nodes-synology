@@ -18,7 +18,7 @@ on:
       SYNO_BASE_URL:
         required: true
       SYNO_ACCOUNT:
-        required: true
+        required: false
       SYNO_PASS:
         required: true
       SYNO_ALLOW_UNAUTHORIZED_CERTS:
@@ -34,7 +34,7 @@ jobs:
     env:
       N8N_VERSION: ${{ inputs.n8n_version || 'latest' }}
       SYNO_BASE_URL: ${{ secrets.SYNO_BASE_URL }}
-      SYNO_ACCOUNT: ${{ secrets.SYNO_ACCOUNT }}
+      SYNO_ACCOUNT: ${{ vars.SYNO_USERNAME }}
       SYNO_PASS: ${{ secrets.SYNO_PASS }}
       SYNO_ALLOW_UNAUTHORIZED_CERTS: ${{ secrets.SYNO_ALLOW_UNAUTHORIZED_CERTS || 'true' }}
     steps:

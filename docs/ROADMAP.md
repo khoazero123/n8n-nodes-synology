@@ -76,14 +76,35 @@ The Drive node currently covers the discovered file-management, label, team-fold
 
 The Drive node is registered in the package manifest and passes the package build, ESLint, n8n community-node lint, and package dry-run checks.
 
-## Phase 3: Download Station
+## Phase 3: Download Station — baseline complete
 
-Planned operations:
+The Download Station node is implemented and passes build, lint, and package dry-run checks.
 
-- Create URL/torrent task
-- List/get task
-- Pause/resume/delete task
-- Get task statistics
+### Implemented
+
+- `task` resource: createUrl, getMany (list), get, pause, resume, delete
+- `statistics` resource: get (current speeds)
+- Uses V1 documented API (`SYNO.DownloadStation.Task` v3, `SYNO.DownloadStation.Statistic` v1, `SYNO.DownloadStation.Info` v2)
+- App-specific CGI paths handled via `SynologyClient.requestPath()`:
+  - `DownloadStation/task.cgi` for task CRUD
+  - `DownloadStation/info.cgi` for info queries
+  - `DownloadStation/statistic.cgi` for statistics
+- Shares the `Synology API` credential and DSM session (`session=DownloadStation`)
+- Binary torrent create is intentionally excluded from phase 1 (requires multipart contract verification)
+
+### Verified NAS API discovery
+
+- `SYNO.DownloadStation.Task` v3: path `DownloadStation/task.cgi` (V1, documented)
+- `SYNO.DownloadStation.Info` v2: path `DownloadStation/info.cgi` (V1, documented)
+- `SYNO.DownloadStation.Statistic` v1: path `DownloadStation/statistic.cgi` (V1, documented)
+- `SYNO.DownloadStation2.Task` v2: path `DownloadStation/entry.cgi` (V2, internal — reserved for future fallback)
+
+### Pending
+
+- Run the destructive direct CRUD E2E only with explicit approval (it creates and deletes a real NAS task); the read-only n8n workflow E2E is available and has passed locally
+- Binary torrent file upload (`create` with multipart/file param)
+- V1 `create` verification on local NAS (may fail on DSM7; V2 fallback if needed)
+- Resource-level operations: `info` (getConfig, setConfig), `schedule`, `rss`, `btSearch`
 
 ## Development checks
 

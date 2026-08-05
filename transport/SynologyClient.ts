@@ -108,6 +108,52 @@ export class SynologyClient {
 		return (response.data ?? {}) as T;
 	}
 
+	/**
+	 * Send a request to an app-specific CGI path (e.g. DownloadStation/task.cgi).
+	 * Preserves auth/session and error handling, but posts to the given path
+	 * instead of webapi/entry.cgi.
+	 */
+	async requestPath<T extends IDataObject = IDataObject>(
+		request: SynologyRequestParams,
+		webapiPath: string,
+	): Promise<T> {
+		const session = request.session;
+		const sid = session ? await this.login(session) : undefined;
+
+		const body = new URLSearchParams();
+		const params: IDataObject = {
+			api: request.api,
+			version: request.version,
+			method: request.method,
+			...(request.params ?? {}),
+			...(sid ? { _sid: sid } : {}),
+		};
+
+		for (const [key, value] of Object.entries(params)) {
+			if (value === undefined || value === null) continue;
+			body.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+		}
+
+		const options: IHttpRequestOptions = {
+			method: 'POST',
+			url: `${this.credentials.baseUrl.replace(/\/$/, '')}/webapi/${webapiPath.replace(/^\//, '')}`,
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: body.toString(),
+			json: true,
+			skipSslCertificateValidation: this.credentials.allowUnauthorizedCerts ?? false,
+		};
+
+		const response = await this.executeFunctions.helpers.httpRequest(options) as SynologyApiResponse<T>;
+
+		if (!response.success) {
+			throw new NodeApiError(this.executeFunctions.getNode(), response as unknown as JsonObject, {
+				message: `Synology API call failed: ${request.api}.${request.method} (path: ${webapiPath})`,
+			});
+		}
+
+		return (response.data ?? {}) as T;
+	}
+
 	private async rawRequest<T extends IDataObject = IDataObject>(request: SynologyRequestParams): Promise<SynologyApiResponse<T>> {
 		const body = new URLSearchParams();
 		const params: IDataObject = {

@@ -27,3 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Previous Releases
 
 For releases prior to v0.0.2, please refer to the git commit history.
+
+## [0.0.3] - Unreleased
+
+### Added
+- Integrated the Synology Drive node into the umbrella package.
+- Reused the shared `Synology API` credential.
+- Added Drive application-session authentication with `id` and `did` cookies.
+- Registered Synology Drive in the package manifest alongside Note Station.

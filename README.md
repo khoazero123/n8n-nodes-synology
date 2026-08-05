@@ -2,7 +2,7 @@
 
 n8n community nodes for Synology NAS applications.
 
-This package is designed as an umbrella package for multiple Synology apps. The first development target is **Synology Note Station**. Future targets include Drive, Download Station, File Station, Photos, and Calendar.
+This package is designed as an umbrella package for multiple Synology apps. It currently includes **Synology Note Station** and **Synology Drive**. Future targets include Download Station, File Station, Photos, and Calendar.
 
 ## Supported apps
 
@@ -17,16 +17,29 @@ Initial development target:
 - Share support, including public share links
 - Upload files to notes from n8n binary data
 
-Current scaffold includes:
+Current implementation includes:
 
 - Shared `Synology API` credential
 - Shared DSM/WebAPI transport client
-- `Synology Note Station` node skeleton
-- Early notebook create, note create, and note get operations
+- `Synology Note Station` node
+- Notebook, note, shelf/stack, and public-share operations
+- Full-note retrieval after note create/update when requested
 
 ### Synology Drive
 
-Planned migration from: https://github.com/khoazero123/n8n-nodes-synology-drive
+Migrated from: https://github.com/khoazero123/n8n-nodes-synology-drive
+
+Supported file operations:
+
+- List files and folders
+- Search by keyword
+- List recently used items
+- Create text files and folders
+- Upload binary data
+- Download files as n8n binary data
+- Delete files or folders, with optional permanent deletion
+
+Drive uses the shared **Synology API** credential. Its application REST API uses a separate Drive session internally; the node handles that login and sends the required `id` and `did` cookies.
 
 ### Synology Download Station
 

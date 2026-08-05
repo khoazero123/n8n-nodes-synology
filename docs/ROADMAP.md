@@ -6,7 +6,7 @@
 
 - One npm package: `n8n-nodes-synology`
 - One shared credential: `Synology API`
-- Shared transport layer for DSM/WebAPI login, request, upload, download, and error handling
+- Shared transport layer for DSM/WebAPI login, request, upload, download, and error handling where the application API supports it
 - One n8n node per Synology application
 
 Planned nodes:
@@ -45,9 +45,9 @@ Known tested API facts from local NAS discovery:
 - Note create: `SYNO.NoteStation.Note`, version `3`, method `create`, params `title`, `parent_id`, `content`, optional `brief`, `commit_msg`.
 - Create note response may not include the saved content; follow up with `get` when content verification is needed.
 
-## Phase 2: Drive migration
+## Phase 2: Drive migration — complete
 
-Migrate functionality from `khoazero123/n8n-nodes-synology-drive` into this umbrella package as a `Synology Drive` node, while reusing shared credentials and transport where practical.
+Functionality from `khoazero123/n8n-nodes-synology-drive` is integrated into this umbrella package as a `Synology Drive` node. The shared `Synology API` credential is reused. Drive's application REST API has a separate cookie-based login flow, so it is handled by the node rather than by the DSM WebAPI transport.
 
 Existing Drive operations to preserve:
 
@@ -56,6 +56,8 @@ Existing Drive operations to preserve:
 - Create text files and folders
 - Download files as binary output
 - Delete files/folders, soft or permanent
+
+The Drive node is registered in the package manifest and passes the package build, ESLint, n8n community-node lint, and package dry-run checks.
 
 ## Phase 3: Download Station
 

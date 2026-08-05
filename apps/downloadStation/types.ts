@@ -78,6 +78,14 @@ export interface CreateUrlTaskInput {
 	password?: string;
 }
 
+export interface CreateTorrentTaskInput {
+	data: Buffer;
+	filename: string;
+	contentType?: string;
+	destination?: string;
+	createList?: boolean;
+}
+
 export interface DeleteTaskInput {
 	taskId: string;
 	forceComplete?: boolean;
@@ -93,4 +101,47 @@ export interface DownloadStationStatistics {
 	speed_upload: number;
 	emule_speed_download?: number;
 	emule_speed_upload?: number;
+}
+
+/** Configuration returned by SYNO.DownloadStation.Info v2 getconfig. */
+export interface DownloadStationConfig {
+	bt_max_download?: number;
+	bt_max_upload?: number;
+	default_destination?: string;
+	emule_enabled?: boolean;
+	[key: string]: unknown;
+}
+
+/** Input for SYNO.DownloadStation.BTSearch v1 list (search). */
+export interface BTSearchInput {
+	/** Search keyword. */
+	keyword: string;
+	/** Optional BT search module id (from a configured search module). */
+	module?: string;
+	/** Max number of results to return. */
+	limit?: number;
+	/** Number of results to skip. */
+	offset?: number;
+}
+
+/** A single BT search result item (shape verified on NAS). */
+export interface BTSearchItem {
+	title?: string;
+	size?: number;
+	category?: string;
+	count?: number;
+	date?: number;
+	seeder?: number;
+	leecher?: number;
+	site?: string;
+	module?: string;
+	download?: string;
+	[key: string]: unknown;
+}
+
+/** Response of SYNO.DownloadStation.BTSearch v1 list. */
+export interface BTSearchResult {
+	total: number;
+	offset: number;
+	items: BTSearchItem[];
 }

@@ -6,7 +6,7 @@ Ngày: 2026-08-05
 
 Download Station WebAPI có hai generation API:
 - **V1 (`SYNO.DownloadStation.Task`)**: Documented chính thức (PDF 2014), các method `list`, `getinfo`, `create`, `delete`, `pause`, `resume`, `edit`.
-- **V2 (`SYNO.DownloadStation2.Task`)**: Không có tài liệu chính thức, "reserved for internal use by Synology" nhưng thực tế hoạt động trên DSM 7.x + Download Station 4.x. Path khác (`DownloadStation/entry.cgi` thay vì `DownloadStation/task.cgi`), method `create` dùng `type=url` thay vì `uri`.
+- **V2 (`SYNO.DownloadStation2.Task`)**: Không có tài liệu chính thức, "reserved for internal use by Synology" nhưng frontend Download Station 4.1.2 sử dụng thực tế trên DSM 7.x. Path `DownloadStation/entry.cgi`, method `create`; URL dùng `type=url`, `url` dạng array; torrent upload dùng `type=file` và multipart file field `torrent`.
 
 **Quyết định:** Phase 1 chỉ implement V1 API (có contract rõ ràng, documented). V2 chỉ được dùng trong bài test destructive có opt-in; chưa đưa fallback V2 vào node vì đây là API internal/undocumented và cần xác minh thêm contract lỗi/response trên từng DSM.
 
@@ -58,7 +58,7 @@ Params: account, passwd, session=DownloadStation, format=sid
 
 ### 4.2 API Discovery (runtime)
 ```
-GET /webapi/query.cgi?api=SYNO.API.Info&version=1&method=query&query=SYNO.DownloadStation.Task,SYNO.DownloadStation2.Task,SYNO.DownloadStation.Info,SYNO.DownloadStation.Statistic
+GET /webapi/query.cgi?api=SYNO.API.Info&version=1&method=query&query=SYNO.DownloadStation.Task,SYNO.DownloadStation2.Task,SYNO.DownloadStation.Info,SYNO.DownloadStation.Statistic,SYNO.DownloadStation.BTSearch,SYNO.DownloadStation.Schedule
 ```
 Trả về `path`, `minVersion`, `maxVersion` cho từng API — dùng để quyết định V1 vs V2.
 
@@ -129,7 +129,7 @@ size_downloaded, size_uploaded, speed_download, speed_upload
 | Method | Params | Notes |
 |--------|--------|-------|
 | `create` | `type=url`, `url`, `destination?`, `create_list?` | URL/magnet. Tested working DSM 7.2.1. |
-| `create` | `type=file`, `file` (multipart), `destination?`, `create_list?` | Torrent file upload. Multipart. |
+| `create` | `type=file`, `file=["torrent"]`, multipart field `torrent`, `destination` (JSON-encoded), `create_list` | Frontend upload callback receives `data.list_id`; task/list handling still needs E2E verification |
 | `list` | `offset?`, `limit?`, `additional?` | Same response shape. |
 | `getinfo` | `id`, `additional?` | Same response shape. |
 | `delete` | `id` | ... |
@@ -137,6 +137,10 @@ size_downloaded, size_uploaded, speed_download, speed_upload
 | `resume` | `id` | ... |
 
 **Path:** `DownloadStation/entry.cgi` (different from V1's `DownloadStation/task.cgi`)
+
+**Frontend evidence (NAS Download Station 4.1.2-5012, read-only inspection):** `ui/download.js` defines `QueueAddFile.FILEFILEDNAME="torrent"`, `type="file"`, hidden `file=["torrent"]`, and `QueueAddFileUploader` posts `api=SYNO.DownloadStation2.Task`, `version=2`, `method=create`. It sends `destination` as JSON and `create_list` as a boolean. The upload completion handler reads `response.data.list_id`. This identifies the multipart contract, but does not yet prove the full server response/task lifecycle.
+
+**Controlled live probe (2026-08-05):** initial non-browser-shaped requests returned `success=false, error.code=119` before creating a task; task list remained empty (`before_count=0`, `created_ids=[]`). Further frontend-contract analysis found two important details: the upload URL is `entry.cgi/SYNO.DownloadStation2.Task` (API in the path, not only `entry.cgi`), and the HTML5 uploader always adds multipart field `size=<file.size>`. A browser-shaped probe using those details returned `error.code=101` (generic task error) and still created no task. The multipart body is now closer to the frontend, but live compatibility remains unproven; do not claim upload support until a successful task lifecycle is observed.
 
 ⚠️ **V2 caveat from Python lib docs:** "the V2 API is reserved by Synology for internal use and may return 'Preserve for other purpose' on most DSM installations." Cần verify trên NAS thực tế.
 
@@ -152,9 +156,9 @@ size_downloaded, size_uploaded, speed_download, speed_upload
 | 1 | **V1 `create` có hoạt động trên DSM7 không?** | 🔴 CRITICAL | curl POST `SYNO.DownloadStation.Task` v1 method=create với URL đơn giản. Nếu fail → chỉ dùng V2. |
 | 2 | **V2 API có trả về "Preserve for other purpose" không?** | 🔴 CRITICAL | Query `SYNO.API.Info` xem `SYNO.DownloadStation2.Task` có trong response không. Nếu không → fallback V1. |
 | 3 | **Đường dẫn chính xác cho V2** | 🟡 HIGH | Theo autobrr: `DownloadStation/entry.cgi`. Cần xác nhận trên NAS. |
-| 4 | **Multipart torrent upload V2** | 🟡 HIGH | Xác minh field name là `file`, response format sau upload, cách parse task_id trả về. |
-| 5 | **`create_list` param trong V2** | 🟢 MEDIUM | Ý nghĩa chính xác? autobrr dùng `create_list=false`. Có cần cho torrent multi-file? |
-| 6 | **V1 `file` param (torrent upload)** | 🟢 MEDIUM | Official doc có param `file` cho create. Format multipart? Field name? |
+| 4 | **Multipart torrent upload V2** | 🟡 HIGH | **Frontend contract đã xác minh:** `SYNO.DownloadStation2.Task` v2, `create`, `type=file`, multipart field `torrent`, metadata `file=["torrent"]`, `destination` JSON-encoded, `create_list` boolean. Còn cần controlled E2E để xác minh server response và task/list lifecycle. |
+| 5 | **`create_list` param trong V2** | 🟢 MEDIUM | Frontend gửi boolean `create_list`; khi bật, callback đọc `data.list_id` để lấy file-info/list. Cần E2E xác minh list endpoint và cleanup. |
+| 6 | **V1 `file` param (torrent upload)** | 🟢 MEDIUM | Official doc có nhắc `file`, nhưng frontend DSM 7.2/Download Station 4.1.2 dùng V2 `type=file`; chưa nên implement V1 multipart. |
 | 7 | **`SYNO.DownloadStation.Task.List` endpoint** | 🟢 MEDIUM | Python lib có reference tới `SYNO.DownloadStation2.Task.List` để get file list sau khi create. Tồn tại thực tế không? |
 | 8 | **Task ID format** | 🟢 LOW | V1 dùng `dbid_XXX`. V2 có dùng format khác không? |
 
@@ -164,7 +168,7 @@ size_downloaded, size_uploaded, speed_download, speed_upload
 | Operation | V1 Method | V2 Method | Input params |
 |-----------|-----------|-----------|--------------|
 | `createUrl` | `create` (uri=) | `create` (type=url) | url, destination? |
-| `createTorrent` | `create` (file=) | `create` (type=file) | **Deferred:** cần xác minh multipart contract trước |
+| `createTorrent` | `create` (file=) | `create` (type=file), multipart field `torrent` | **Implemented theo frontend contract; real NAS E2E destructive còn pending approval** |
 | `getAll` | `list` | `list` | offset?, limit?, additional? |
 | `get` | `getinfo` | `getinfo` | taskId, additional? |
 | `pause` | `pause` | `pause` | taskId |
@@ -176,11 +180,24 @@ size_downloaded, size_uploaded, speed_download, speed_upload
 |-----------|--------|-------|
 | `get` | `SYNO.DownloadStation.Statistic.getinfo` | none |
 
+### Resource: `info` (phase 3)
+| Operation | Method | Input |
+|-----------|--------|-------|
+| `get` | `SYNO.DownloadStation.Info.getinfo` (v2) | none |
+| `getConfig` | `SYNO.DownloadStation.Info.getconfig` (v2) | none |
+
+### Resource: `btSearch` (phase 3, đã xác minh read-only)
+| Operation | Method | Input |
+|-----------|--------|-------|
+| `search` | `SYNO.DownloadStation.BTSearch.list` (v1, path `DownloadStation/btsearch.cgi`) | keyword, module?, limit?, offset? |
+
+**Probe thực tế NAS (2026-08-05):** `list` trả `{items, offset, total}` ✅; `get` (module list) trả lỗi 103; `SYNO.DownloadStation.RSS` và `SYNO.DownloadStation.Task.SchedTask` không tồn tại trên NAS này; `SYNO.DownloadStation.Schedule` v1 có expose nhưng `get`/`list`/`set` đều trả 103 với account hiện tại → chưa verify được contract.
+
 ### Future (sau phase 1):
-- Resource `info`: getDSInfo, getConfig, setConfig
-- Resource `schedule`: get, set
-- Resource `rss`: RSS site/feed operations
-- Resource `btSearch`: start, list, clean
+- Resource `info`: setConfig (mutation)
+- Resource `schedule`: chờ xác minh contract (NAS trả 103 hiện tại)
+- Resource `rss`: chưa có trên NAS này
+- Resource `btSearch`: start, clean (search result lifecycle — chưa verify)
 
 ## 7. Types Dự Kiến
 
@@ -279,7 +296,7 @@ nodes/SynologyDownloadStation/
 
 ### Implementation Complete (2026-08-05)
 
-Phase 1 intentionally covers the safe, documented V1 operations. URL creation is implemented with V1 only; V2 fallback and torrent upload remain explicitly deferred until their undocumented/multipart contracts are verified.
+Phase 1 intentionally covers the safe, documented V1 operations plus verified read-only Info/BTSearch. URL creation is implemented with V1 only; V2 URL fallback and torrent upload remain pending controlled E2E despite the frontend multipart contract now being identified.
 
 - `apps/downloadStation/constants.ts` — API strings, session name, task status map, additional fields
 - `apps/downloadStation/types.ts` — TypeScript interfaces for tasks, statistics, inputs

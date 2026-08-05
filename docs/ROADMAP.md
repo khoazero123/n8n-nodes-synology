@@ -85,11 +85,14 @@ The Download Station node is implemented and passes build, lint, and package dry
 
 - `task` resource: createUrl, getMany (list), get, pause, resume, delete
 - `statistics` resource: get (current speeds)
-- Uses V1 documented API (`SYNO.DownloadStation.Task` v3, `SYNO.DownloadStation.Statistic` v1, `SYNO.DownloadStation.Info` v2)
+- `info` resource: get, getConfig (read-only server configuration)
+- `btSearch` resource: search (read-only keyword search)
+- Uses V1 documented API (`SYNO.DownloadStation.Task` v3, `SYNO.DownloadStation.Statistic` v1, `SYNO.DownloadStation.Info` v2, `SYNO.DownloadStation.BTSearch` v1)
 - App-specific CGI paths handled via `SynologyClient.requestPath()`:
   - `DownloadStation/task.cgi` for task CRUD
   - `DownloadStation/info.cgi` for info queries
   - `DownloadStation/statistic.cgi` for statistics
+  - `DownloadStation/btsearch.cgi` for BT search
 - Shares the `Synology API` credential and DSM session (`session=DownloadStation`)
 - Binary torrent create is intentionally excluded from phase 1 (requires multipart contract verification)
 
@@ -98,6 +101,8 @@ The Download Station node is implemented and passes build, lint, and package dry
 - `SYNO.DownloadStation.Task` v3: path `DownloadStation/task.cgi` (V1, documented)
 - `SYNO.DownloadStation.Info` v2: path `DownloadStation/info.cgi` (V1, documented)
 - `SYNO.DownloadStation.Statistic` v1: path `DownloadStation/statistic.cgi` (V1, documented)
+- `SYNO.DownloadStation.BTSearch` v1: path `DownloadStation/btsearch.cgi` (V1, documented; `list` = search verified on NAS)
+- `SYNO.DownloadStation.Schedule` v1: path `DownloadStation/schedule.cgi` (exposed by NAS, but methods returned error 103 for the current account — pending)
 - `SYNO.DownloadStation2.Task` v2: path `DownloadStation/entry.cgi` (V2, internal — reserved for future fallback)
 
 ### Pending
@@ -105,7 +110,8 @@ The Download Station node is implemented and passes build, lint, and package dry
 - Run the destructive direct CRUD E2E only with explicit approval (it creates and deletes a real NAS task); the default direct test is now read-only
 - Binary torrent file upload (`create` with multipart/file param)
 - V1 `create` verification on local NAS (may fail on DSM7; V2 fallback if needed)
-- Resource-level operations: `info` config mutations (`getConfig`, `setConfig`), `schedule`, `rss`, `btSearch`
+- Resource-level operations: `info` config mutation (`setConfig`), `schedule`, `rss`
+- `btSearch` `start`/`clean` (search result lifecycle) — only `list` (search) is verified so far
 
 ## Development checks
 

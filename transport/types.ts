@@ -23,4 +23,6 @@ export interface SynologyRequestParams {
 	method: string;
 	session?: string;
 	params?: IDataObject;
+	/** Optional path prefix for multipart endpoints, e.g. entry.cgi/<api>. */
+	multipartPath?: string;
 }

@@ -1,16 +1,24 @@
 import type { IDataObject } from 'n8n-workflow';
 import {
+	DOWNLOAD_BT_SEARCH_API,
+	DOWNLOAD_BT_SEARCH_API_VERSION,
 	DOWNLOAD_STATION_SESSION,
 	DOWNLOAD_TASK_API,
 	DOWNLOAD_TASK_API_VERSION,
+	DOWNLOAD_TASK_V2_API,
+	DOWNLOAD_TASK_V2_API_VERSION,
 	DOWNLOAD_INFO_API,
 	DOWNLOAD_INFO_API_VERSION,
 	DOWNLOAD_STATISTIC_API,
 	DOWNLOAD_STATISTIC_API_VERSION,
 } from './constants';
 import type {
+	BTSearchInput,
+	BTSearchResult,
 	CreateUrlTaskInput,
+	CreateTorrentTaskInput,
 	DownloadStationStatistics,
+	DownloadStationConfig,
 	DownloadTask,
 	ListTasksInput,
 	TaskActionResult,
@@ -37,6 +45,30 @@ export class DownloadStationClient {
 			session: DOWNLOAD_STATION_SESSION,
 			params,
 		}, 'DownloadStation/task.cgi');
+	}
+
+	/** Create a task using Download Station 4.1.2's verified V2 multipart contract. */
+	async createTorrentTask(input: CreateTorrentTaskInput): Promise<IDataObject> {
+		return await this.synology.requestMultipart(
+			{
+				api: DOWNLOAD_TASK_V2_API,
+				version: DOWNLOAD_TASK_V2_API_VERSION,
+				method: 'create',
+				session: DOWNLOAD_STATION_SESSION,
+				multipartPath: 'entry.cgi',
+				params: {
+					// The frontend hidden field is Ext.encode('file'), so the
+					// multipart scalar includes JSON string quotes.
+					type: JSON.stringify('file'),
+					file: ['torrent'],
+					destination: JSON.stringify(input.destination ?? ''),
+					size: input.data.length,
+					create_list: input.createList ?? false,
+				},
+			},
+			{ fieldName: 'torrent', filename: input.filename, data: input.data, contentType: input.contentType ?? 'application/octet-stream' },
+			{},
+		);
 	}
 
 	/**
@@ -131,6 +163,25 @@ export class DownloadStationClient {
 	}
 
 	/**
+	 * Search BT search modules for a keyword (read-only).
+	 * Uses V1 API: SYNO.DownloadStation.BTSearch v1 via DownloadStation/btsearch.cgi.
+	 */
+	async btSearch(input: BTSearchInput): Promise<BTSearchResult> {
+		const params: IDataObject = { keyword: input.keyword };
+		if (input.module) params.module = input.module;
+		if (input.limit !== undefined) params.limit = input.limit;
+		if (input.offset !== undefined) params.offset = input.offset;
+
+		return (await this.synology.requestPath({
+			api: DOWNLOAD_BT_SEARCH_API,
+			version: DOWNLOAD_BT_SEARCH_API_VERSION,
+			method: 'list',
+			session: DOWNLOAD_STATION_SESSION,
+			params,
+		}, 'DownloadStation/btsearch.cgi')) as unknown as BTSearchResult;
+	}
+
+	/**
 	 * Get Download Station statistics (download/upload speeds).
 	 * Uses V1 API: SYNO.DownloadStation.Statistic v1 via DownloadStation/statistic.cgi.
 	 */
@@ -154,5 +205,18 @@ export class DownloadStationClient {
 			method: 'getinfo',
 			session: DOWNLOAD_STATION_SESSION,
 		}, 'DownloadStation/info.cgi');
+	}
+
+	/**
+	 * Get Download Station server configuration without changing it.
+	 * Uses V1 API: SYNO.DownloadStation.Info v2 via DownloadStation/info.cgi.
+	 */
+	async getConfig(): Promise<DownloadStationConfig> {
+		return (await this.synology.requestPath({
+			api: DOWNLOAD_INFO_API,
+			version: DOWNLOAD_INFO_API_VERSION,
+			method: 'getconfig',
+			session: DOWNLOAD_STATION_SESSION,
+		}, 'DownloadStation/info.cgi')) as unknown as DownloadStationConfig;
 	}
 }

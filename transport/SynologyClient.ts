@@ -78,12 +78,23 @@ export class SynologyClient {
 		const boundary = `----n8nSynology${Date.now().toString(16)}`;
 		const crlf = '\r\n';
 		const chunks: Buffer[] = [];
-		const fields: Record<string, string> = { api: request.api, version: String(request.version), method: request.method, ...(request.params ? Object.fromEntries(Object.entries(request.params).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v)])) : {}), ...extraFields };
+		// Download Station's HTML5 uploader posts to entry.cgi/<api> and keeps
+		// api/version/method in the URL path. Other multipart APIs (e.g. Note
+		// Station) use entry.cgi with these values in the multipart form. Keep
+		// the existing generic behavior by default; callers can opt into the
+		// path form through `multipartPath`.
+		const { multipartPath, ...requestParams } = request as SynologyRequestParams & { multipartPath?: string };
+		const fields: Record<string, string> = {
+			...(multipartPath ? {} : { api: request.api, version: String(request.version), method: request.method }),
+			...(requestParams.params ? Object.fromEntries(Object.entries(requestParams.params).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v)])) : {}),
+			...extraFields,
+		};
 		if (sid) fields._sid = sid;
 		for (const [key, value] of Object.entries(fields)) chunks.push(Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="${key}"${crlf}${crlf}${value}${crlf}`));
 		chunks.push(Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="${file.fieldName}"; filename="${file.filename.replace(/"/g, '')}"${crlf}Content-Type: ${file.contentType ?? 'application/octet-stream'}${crlf}${crlf}`));
 		chunks.push(file.data, Buffer.from(crlf), Buffer.from(`--${boundary}--${crlf}`));
-		const response = await this.executeFunctions.helpers.httpRequest({ method: 'POST', url: `${this.credentials.baseUrl.replace(/\/$/, '')}/webapi/entry.cgi`, headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: Buffer.concat(chunks), json: true, skipSslCertificateValidation: this.credentials.allowUnauthorizedCerts ?? false }) as SynologyApiResponse<IDataObject>;
+		const url = `${this.credentials.baseUrl.replace(/\/$/, '')}/webapi/${multipartPath ? `${multipartPath.replace(/^\//, '')}/${request.api}` : 'entry.cgi'}`;
+		const response = await this.executeFunctions.helpers.httpRequest({ method: 'POST', url, headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: Buffer.concat(chunks), json: true, skipSslCertificateValidation: this.credentials.allowUnauthorizedCerts ?? false }) as SynologyApiResponse<IDataObject>;
 		if (!response.success) {
 			const detail = response.error ? `: ${JSON.stringify(response.error)}` : '';
 			throw new NodeApiError(this.executeFunctions.getNode(), response as unknown as JsonObject, { message: `Synology API call failed: ${request.api}.${request.method}${detail}` });

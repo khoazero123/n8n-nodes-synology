@@ -17,3 +17,8 @@
 - **Fix**: Use a simple `python3 -c` probe or a properly literal multiline command; verify the command before relying on its output.
 
 - 2026-08-05: Initial remote frontend grep probe failed because a quoted heredoc was escaped incorrectly inside the SSH command. Retry with a one-line remote Python command or a temporary script.
+
+## 2026-08-05 — Download Station V2 torrent multipart probe returned task errors
+- Initial real upload attempts returned `code=119`; frontend mapping identifies 119 as `TASK_ERROR_EXTRACT_WRONG_PASSWORD`, so it is not a reliable multipart-validation error when no task is returned.
+- A browser-shaped probe using API in the URL path, quoted JSON `type`, `file=["torrent"]`, and uploader-added `size` returned `code=101`; no task was created.
+- Next step is to capture a successful browser request or use a NAS-side browser session; do not infer live compatibility from these generic task errors.

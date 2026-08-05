@@ -7,6 +7,8 @@ export const DOWNLOAD_INFO_API = 'SYNO.DownloadStation.Info';
 export const DOWNLOAD_INFO_API_VERSION = 2;
 export const DOWNLOAD_STATISTIC_API = 'SYNO.DownloadStation.Statistic';
 export const DOWNLOAD_STATISTIC_API_VERSION = 1;
+export const DOWNLOAD_BT_SEARCH_API = 'SYNO.DownloadStation.BTSearch';
+export const DOWNLOAD_BT_SEARCH_API_VERSION = 1;
 
 // V2 API (internal, undocumented — use only as fallback)
 export const DOWNLOAD_TASK_V2_API = 'SYNO.DownloadStation2.Task';

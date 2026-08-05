@@ -130,8 +130,10 @@ async function main() {
 		const nodes = [
 			{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
 			{ name: 'Get Info', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'info', operation: 'get' }, credentials: c },
-			{ name: 'Get Statistics', type, typeVersion: 1, position: [480, 0], parameters: { resource: 'statistics', operation: 'get' }, credentials: c },
-			{ name: 'Get Tasks', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'task', operation: 'getMany', limit: 10 }, credentials: c },
+			{ name: 'Get Config', type, typeVersion: 1, position: [480, 0], parameters: { resource: 'info', operation: 'getConfig' }, credentials: c },
+			{ name: 'Get Statistics', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'statistics', operation: 'get' }, credentials: c },
+			{ name: 'Get Tasks', type, typeVersion: 1, position: [960, 0], parameters: { resource: 'task', operation: 'getMany', limit: 10 }, credentials: c },
+			{ name: 'BT Search', type, typeVersion: 1, position: [1200, 0], parameters: { resource: 'btSearch', operation: 'search', keyword: 'ubuntu', limit: 5 }, credentials: c },
 		];
 		const connections = {};
 		for (let i = 0; i < nodes.length - 1; i++) connections[nodes[i].name] = { main: [[{ node: nodes[i + 1].name, type: 'main', index: 0 }]] };
@@ -160,6 +162,17 @@ async function main() {
 			console.log('✅ Download Station info returned');
 		}
 
+		// Verify config output
+		const configOutput = summary['Get Config']?.[0]?.json?.[0];
+		if (!configOutput || typeof configOutput !== 'object') {
+			throw new Error('Get Config output did not contain an object');
+		}
+		const configKeys = ['bt_max_download', 'bt_max_upload', 'default_destination', 'emule_enabled'];
+		if (!configKeys.some((key) => Object.prototype.hasOwnProperty.call(configOutput, key))) {
+			throw new Error(`Get Config output did not contain a documented config field: ${JSON.stringify(configOutput)}`);
+		}
+		console.log('✅ Download Station config returned');
+
 		// Verify statistics output
 		const statOutput = summary['Get Statistics']?.[0]?.json?.[0];
 		if (!statOutput || statOutput.speed_download === undefined) {
@@ -176,6 +189,16 @@ async function main() {
 			console.log(`✅ Task list returned total=${taskOutput.total}`);
 		} else {
 			console.warn('⚠️  Task list did not return expected shape — may be empty which is OK');
+		}
+
+		// Verify BT search output
+		const searchOutput = summary['BT Search']?.[0]?.json?.[0];
+		if (searchOutput && typeof searchOutput === 'object' && Array.isArray(searchOutput.items) && typeof searchOutput.total === 'number') {
+			console.log(`✅ BT search returned total=${searchOutput.total}`);
+		} else if (searchOutput && typeof searchOutput === 'object') {
+			console.warn(`⚠️  BT search output shape unexpected: ${JSON.stringify(searchOutput)}`);
+		} else {
+			throw new Error('BT Search output did not contain an object');
 		}
 
 		if (execution.status !== 'success') {

@@ -86,7 +86,7 @@ def main():
         "api": "SYNO.API.Info",
         "version": "1",
         "method": "query",
-        "query": "SYNO.DownloadStation.Task,SYNO.DownloadStation2.Task,SYNO.DownloadStation.Info,SYNO.DownloadStation.Statistic",
+        "query": "SYNO.DownloadStation.Task,SYNO.DownloadStation2.Task,SYNO.DownloadStation.Info,SYNO.DownloadStation.Statistic,SYNO.DownloadStation.BTSearch,SYNO.DownloadStation.Schedule",
     })
     if info_resp.get("success"):
         data = info_resp.get("data", {})
@@ -95,8 +95,43 @@ def main():
     else:
         fail(f"API Info query failed: {info_resp.get('error')}")
 
-    # 3. Get Statistics
-    print("\n📡 3. Statistics (SYNO.DownloadStation.Statistic v1)...")
+    # 3. Get Download Station info
+    print("\n📡 3. Info (SYNO.DownloadStation.Info v2 getinfo, read-only)...")
+    info_get_resp = api_request("DownloadStation/info.cgi", {
+        "api": "SYNO.DownloadStation.Info",
+        "version": "2",
+        "method": "getinfo",
+        "_sid": sid,
+    })
+    if info_get_resp.get("success"):
+        info_data = info_get_resp.get("data", {})
+        if "version" in info_data or "version_string" in info_data:
+            ok(f"version={info_data.get('version')}, version_string={info_data.get('version_string')}")
+        else:
+            fail(f"Info returned unexpected shape: {info_data}")
+    else:
+        fail(f"Info getinfo failed: {info_get_resp.get('error')}")
+
+    # 4. Get Download Station config
+    print("\n📡 4. Config (SYNO.DownloadStation.Info v2 getconfig, read-only)...")
+    config_resp = api_request("DownloadStation/info.cgi", {
+        "api": "SYNO.DownloadStation.Info",
+        "version": "2",
+        "method": "getconfig",
+        "_sid": sid,
+    })
+    if config_resp.get("success"):
+        config_data = config_resp.get("data", {})
+        config_keys = {"bt_max_download", "bt_max_upload", "default_destination", "emule_enabled"}
+        if any(key in config_data for key in config_keys):
+            ok(f"default_destination={config_data.get('default_destination')}")
+        else:
+            fail(f"Config returned unexpected shape: {config_data}")
+    else:
+        fail(f"Info getconfig failed: {config_resp.get('error')}")
+
+    # 5. Get Statistics
+    print("\n📡 5. Statistics (SYNO.DownloadStation.Statistic v1)...")
     stat_resp = api_request("DownloadStation/statistic.cgi", {
         "api": "SYNO.DownloadStation.Statistic",
         "version": "1",
@@ -109,8 +144,8 @@ def main():
     else:
         fail(f"Statistics failed: {stat_resp.get('error')}")
 
-    # 4. List tasks (safe read-only check)
-    print("\n📡 4. List Tasks (read-only)...")
+    # 6. List tasks (safe read-only check)
+    print("\n📡 6. List Tasks (read-only)...")
     list_resp = api_request("DownloadStation/task.cgi", {
         "api": "SYNO.DownloadStation.Task",
         "version": "3",
@@ -123,9 +158,29 @@ def main():
         fail(f"List failed: {list_resp.get('error')}")
 
     task_id = None
+
+    # 7. BT search (safe read-only check)
+    print("\n📡 7. BT Search (SYNO.DownloadStation.BTSearch v1, read-only)...")
+    bt_resp = api_request("DownloadStation/btsearch.cgi", {
+        "api": "SYNO.DownloadStation.BTSearch",
+        "version": "1",
+        "method": "list",
+        "keyword": "ubuntu",
+        "limit": "5",
+        "_sid": sid,
+    })
+    if bt_resp.get("success"):
+        bt_data = bt_resp.get("data", {})
+        if isinstance(bt_data.get("items"), list) and isinstance(bt_data.get("total"), int):
+            ok(f"BT search total={bt_data.get('total')}, offset={bt_data.get('offset')}")
+        else:
+            fail(f"BT search returned unexpected shape: {bt_data}")
+    else:
+        fail(f"BT search failed: {bt_resp.get('error')}")
+
     if ALLOW_DESTRUCTIVE:
-        # 5. Create a URL task. This creates a real NAS task and is opt-in.
-        print("\n📡 5. Create URL Task (SYNO.DownloadStation.Task v3)...")
+        # 8. Create a URL task. This creates a real NAS task and is opt-in.
+        print("\n📡 8. Create URL Task (SYNO.DownloadStation.Task v3)...")
         test_url = "https://httpbin.org/bytes/1024"
         create_resp = api_request("DownloadStation/task.cgi", {
             "api": "SYNO.DownloadStation.Task",

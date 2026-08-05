@@ -18,32 +18,36 @@ Planned nodes:
 - Synology Photos
 - Synology Calendar
 
-## Phase 1: Note Station
+## Phase 1: Note Station — baseline complete, feature parity pending
 
-Resources:
+The initial Note Station node is implemented and passes the real n8n workflow E2E against the target NAS. The phase is **not yet feature-complete**: attachments and dedicated real E2E coverage remain pending. Encryption and import/export baseline operations are now implemented against the discovered Note Station contracts.
 
-- Shelf
-- Notebook
-- Note
-- Share
-- Attachment
+### Implemented and E2E-tested
 
-Initial implementation order:
-
-1. Auth/session handling with `SYNO.API.Auth`, session `NoteStation`.
-2. Notebook CRUD.
-3. Note CRUD and append/prepend helpers.
-4. Shelf CRUD after endpoint discovery.
-5. Native Note Station encryption support after endpoint/payload discovery.
-6. Public share and user/group share.
-7. Attachment upload/list/download/delete.
-
-Implemented after API discovery:
-
-- User and group share set/remove operations.
+- DSM authentication/session handling with `SYNO.API.Auth`, session `NoteStation`.
+- Notebook create/get/list/update/delete.
+- Note create/get/list/update/delete.
+- Append/prepend note content.
+- Full-note readback after create/update.
+- Shelf/stack create/rename/delete.
+- Public share set/get-link/delete.
+- User/group share set/remove operations.
 - Share principal listing.
 - Tag listing.
 - Note Station information lookup.
+- Note version list/get/restore API wiring.
+- Note restore operation wiring for recycle-bin restore.
+- Native encryption token create/check/delete operations.
+- Export start/status/download for Note, Word, and Notebook formats.
+- ENEX and Notebook import from n8n binary input.
+
+Real E2E coverage currently verifies notebook/note lifecycle, append, version listing, share principal listing, tags, info, public sharing, and cleanup. Version restore, recycle-bin restore, user/group share mutation, and shelf operations still need dedicated E2E cases.
+
+### Still pending
+
+- Attachment upload/list/download/delete.
+- Attachment upload/list/download/delete.
+- Dedicated real E2E coverage for encryption, import/export, version restore, recycle-bin restore, user/group share mutation, and shelf operations.
 
 Known tested API facts from local NAS discovery:
 
@@ -52,12 +56,7 @@ Known tested API facts from local NAS discovery:
 - Note create: `SYNO.NoteStation.Note`, version `3`, method `create`, params `title`, `parent_id`, `content`, optional `brief`, `commit_msg`.
 - Create note response may not include the saved content; follow up with `get` when content verification is needed.
 
-Still pending contract verification:
-
-- Attachment upload/list/download/delete.
-- Native encryption operations.
-- Note version/history and restore.
-- Import/export and recycle-bin restore.
+The pending items above are intentionally separated from the baseline because their API contracts or dedicated E2E coverage are not complete yet.
 
 ## Phase 2: Drive migration — complete
 

@@ -126,3 +126,9 @@ jobs:
 
       - name: Drive n8n Workflow E2E
         run: npm run test:e2e:drive:n8n
+
+      - name: Note Station n8n Workflow E2E
+        run: npm run test:e2e:n8n
+
+      - name: Expanded Note Station n8n Workflow E2E
+        run: npm run test:e2e:n8n:notestation:expanded

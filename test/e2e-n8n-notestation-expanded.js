@@ -1,0 +1,289 @@
+#!/usr/bin/env node
+/* eslint-disable no-console */
+
+const { spawn, spawnSync } = require('child_process');
+const crypto = require('crypto');
+const fs = require('fs');
+const http = require('http');
+const net = require('net');
+const os = require('os');
+const path = require('path');
+
+const REPO_ROOT = path.resolve(__dirname, '..');
+const N8N_VERSION = process.env.N8N_VERSION || '2.33.3';
+const PORT = Number(process.env.N8N_PORT || 5681);
+const HOST = process.env.N8N_HOST || '127.0.0.1';
+const BASE_URL = process.env.N8N_BASE_URL || `http://${HOST}:${PORT}`;
+const USER_FOLDER = process.env.N8N_USER_FOLDER || path.join(os.tmpdir(), `n8n-synology-e2e-${Date.now()}`);
+const N8N_PROJECT = process.env.N8N_PROJECT || path.join(USER_FOLDER, 'project');
+const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-e2e@example.com';
+const OWNER_PASSWORD = process.env.N8N_OWNER_PASSWORD || `N8nE2e-${crypto.randomBytes(12).toString('hex')}!`;
+const SYNologyRequiredEnv = ['SYNO_BASE_URL', 'SYNO_ACCOUNT', 'SYNO_PASS'];
+const startedByScript = !process.env.N8N_BASE_URL;
+let authCookie = '';
+let n8nProcess;
+
+function requireEnv() {
+	const missing = SYNologyRequiredEnv.filter((name) => !process.env[name]);
+	if (missing.length) {
+		throw new Error(`Missing required env vars: ${missing.join(', ')}`);
+	}
+}
+
+function run(command, args, options = {}) {
+	const result = spawnSync(command, args, { stdio: 'inherit', ...options });
+	if (result.status !== 0) {
+		throw new Error(`Command failed: ${command} ${args.join(' ')}`);
+	}
+}
+
+function wait(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function portOpen() {
+	return new Promise((resolve) => {
+		const socket = net.connect(PORT, HOST);
+		socket.once('connect', () => { socket.destroy(); resolve(true); });
+		socket.once('error', () => resolve(false));
+		socket.setTimeout(1000, () => { socket.destroy(); resolve(false); });
+	});
+}
+
+async function waitForN8n() {
+	for (let i = 0; i < 90; i++) {
+		try {
+			const response = await request('GET', '/healthz', undefined, false);
+			if (response.statusCode === 200) return;
+		} catch {}
+		await wait(1000);
+	}
+	throw new Error('Timed out waiting for n8n healthz');
+}
+
+function request(method, route, body, useAuth = true) {
+	return new Promise((resolve, reject) => {
+		const url = new URL(route, BASE_URL);
+		const payload = body === undefined ? undefined : JSON.stringify(body);
+		const req = http.request({
+			hostname: url.hostname,
+			port: url.port,
+			path: `${url.pathname}${url.search}`,
+			method,
+			headers: {
+				...(payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}),
+				...(useAuth && authCookie ? { Cookie: authCookie } : {}),
+			},
+		}, (res) => {
+			let raw = '';
+			res.on('data', (chunk) => { raw += chunk; });
+			res.on('end', () => {
+				const setCookie = res.headers['set-cookie'];
+				if (setCookie?.length) {
+					authCookie = setCookie.map((cookie) => cookie.split(';')[0]).join('; ');
+				}
+				let json;
+				try { json = raw ? JSON.parse(raw) : {}; } catch { json = { raw }; }
+				resolve({ statusCode: res.statusCode, json, raw });
+			});
+		});
+		req.on('error', reject);
+		if (payload) req.write(payload);
+		req.end();
+	});
+}
+
+async function api(method, route, body, ok = [200]) {
+	const response = await request(method, route, body);
+	if (!ok.includes(response.statusCode)) {
+		throw new Error(`${method} ${route} failed with ${response.statusCode}: ${response.raw}`);
+	}
+	return response.json.data ?? response.json;
+}
+
+function copyCustomNode() {
+	const dest = path.join(USER_FOLDER, '.n8n', 'custom', 'n8n-nodes-synology');
+	fs.rmSync(dest, { recursive: true, force: true });
+	fs.mkdirSync(path.dirname(dest), { recursive: true });
+	run('npm', ['run', 'build'], { cwd: REPO_ROOT });
+	run('cp', ['-a', REPO_ROOT, dest]);
+	fs.rmSync(path.join(dest, 'node_modules'), { recursive: true, force: true });
+	run('npm', ['install', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: dest });
+}
+
+function ensureN8n() {
+	fs.mkdirSync(N8N_PROJECT, { recursive: true });
+	const pkg = path.join(N8N_PROJECT, 'package.json');
+	if (!fs.existsSync(pkg)) {
+		fs.writeFileSync(pkg, JSON.stringify({ private: true, dependencies: {} }, null, 2));
+	}
+	const bin = path.join(N8N_PROJECT, 'node_modules', '.bin', 'n8n');
+	if (!fs.existsSync(bin)) {
+		run('npm', ['install', `n8n@${N8N_VERSION}`], { cwd: N8N_PROJECT });
+	}
+	return bin;
+}
+
+async function startN8n() {
+	if (!startedByScript) {
+		await waitForN8n();
+		return;
+	}
+	if (await portOpen()) {
+		throw new Error(`Port ${PORT} is already in use. Set N8N_PORT or N8N_BASE_URL.`);
+	}
+	copyCustomNode();
+	const bin = ensureN8n();
+	n8nProcess = spawn(bin, ['start'], {
+		cwd: N8N_PROJECT,
+		env: {
+			...process.env,
+			N8N_USER_FOLDER: USER_FOLDER,
+			N8N_PORT: String(PORT),
+			N8N_HOST: HOST,
+			N8N_PROTOCOL: 'http',
+			N8N_SECURE_COOKIE: 'false',
+			N8N_DIAGNOSTICS_ENABLED: 'false',
+			N8N_VERSION_NOTIFICATIONS_ENABLED: 'false',
+			N8N_PERSONALIZATION_ENABLED: 'false',
+			N8N_TEMPLATES_ENABLED: 'false',
+			N8N_LOG_LEVEL: process.env.N8N_LOG_LEVEL || 'info',
+			N8N_RUNNERS_ENABLED: 'false',
+		},
+		stdio: ['ignore', 'pipe', 'pipe'],
+	});
+	n8nProcess.stdout.on('data', (data) => process.stdout.write(`[n8n] ${data}`));
+	n8nProcess.stderr.on('data', (data) => process.stderr.write(`[n8n] ${data}`));
+	await waitForN8n();
+}
+
+async function waitForRestApi() {
+	for (let i = 0; i < 90; i++) {
+		const response = await request('GET', '/rest/settings', undefined, false);
+		if (response.statusCode === 200 && !response.raw.includes('n8n is starting up')) return;
+		await wait(1000);
+	}
+	throw new Error('Timed out waiting for n8n REST API readiness');
+}
+
+async function setupOwnerAndLogin() {
+	await waitForRestApi();
+	const setup = await request('POST', '/rest/owner/setup', {
+		email: OWNER_EMAIL,
+		firstName: 'Synology',
+		lastName: 'E2E',
+		password: OWNER_PASSWORD,
+	}, false);
+	if (![200, 400].includes(setup.statusCode)) {
+		throw new Error(`Owner setup failed: ${setup.statusCode} ${setup.raw}`);
+	}
+	const login = await request('POST', '/rest/login', {
+		emailOrLdapLoginId: OWNER_EMAIL,
+		password: OWNER_PASSWORD,
+	}, false);
+	if (login.statusCode !== 200) {
+		throw new Error(`Login failed: ${login.statusCode} ${login.raw}`);
+	}
+}
+
+async function createSynologyCredential() {
+	return await api('POST', '/rest/credentials', {
+		name: `Synology E2E ${Date.now()}`,
+		type: 'synologyApi',
+		data: {
+			baseUrl: process.env.SYNO_BASE_URL,
+			username: process.env.SYNO_ACCOUNT,
+			password: process.env.SYNO_PASS,
+			allowUnauthorizedCerts: process.env.SYNO_ALLOW_UNAUTHORIZED_CERTS !== 'false',
+		},
+	});
+}
+
+async function createWorkflow(credential) {
+	const unique = Date.now();
+	const nodes = [
+		{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
+		{ name: 'Create Notebook', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [240, 0], parameters: { resource: 'notebook', operation: 'create', title: `n8n workflow E2E ${unique}` }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Update Notebook', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [480, 0], parameters: { resource: 'notebook', operation: 'update', objectId: "={{ $('Create Notebook').item.json.object_id }}", title: `n8n updated notebook E2E ${unique}` }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Create Note Full', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [720, 0], parameters: { resource: 'note', operation: 'create', parentId: "={{ $('Create Notebook').item.json.object_id }}", title: `n8n note E2E ${unique}`, content: `<div>n8n full note E2E ${unique}</div>`, brief: `n8n full note E2E ${unique}`, returnFullNote: true }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Append Note', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [960, 0], parameters: { resource: 'note', operation: 'append', objectId: "={{ $('Create Note Full').item.json.object_id }}", content: '<div> appended</div>' }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'List Note Versions', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1320, 0], parameters: { resource: 'version', operation: 'getMany', objectId: "={{ $('Create Note Full').item.json.object_id }}" }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'List Principals', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1440, 0], parameters: { resource: 'share', operation: 'listPrincipals', principalType: 'user', limit: 20, offset: 0 }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'List Tags', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1680, 0], parameters: { resource: 'tag', operation: 'getMany', limit: 20, offset: 0 }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Get Note Station Info', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1920, 0], parameters: { resource: 'info', operation: 'get' }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Set Public Share', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [2160, 0], parameters: { resource: 'share', operation: 'setPublic', shareObjectId: "={{ $('Create Note Full').item.json.object_id }}", permission: 'ro' }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Get Public Link', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [2400, 0], parameters: { resource: 'share', operation: 'getPublicLink', shareObjectId: "={{ $('Create Note Full').item.json.object_id }}" }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Delete Public Share', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [2640, 0], parameters: { resource: 'share', operation: 'deletePublic', shareObjectId: "={{ $('Create Note Full').item.json.object_id }}" }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Delete Notebook', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [2880, 0], parameters: { resource: 'notebook', operation: 'delete', objectId: "={{ $('Create Notebook').item.json.object_id }}", recursive: true }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+	];
+	const connections = {};
+	for (let i = 0; i < nodes.length - 1; i++) {
+		connections[nodes[i].name] = { main: [[{ node: nodes[i + 1].name, type: 'main', index: 0 }]] };
+	}
+	return await api('POST', '/rest/workflows', {
+		name: `Synology Note Station Automated E2E ${unique}`,
+		nodes,
+		connections,
+		active: false,
+		settings: { executionOrder: 'v1' },
+		staticData: null,
+		pinData: {
+			'Manual Trigger': [{ json: {} }],
+		},
+		tags: [],
+	});
+}
+
+async function runWorkflow(workflowId) {
+	const result = await api('POST', `/rest/workflows/${workflowId}/run`, { triggerToStartFrom: { name: 'Manual Trigger' } });
+	if (!result.executionId) {
+		throw new Error(`Manual run did not return an executionId: ${JSON.stringify(result)}`);
+	}
+	return result.executionId;
+}
+
+function parseExecutionData(execution) {
+	let parse;
+	try {
+		({ parse } = require('flatted'));
+	} catch {
+		({ parse } = require(path.join(N8N_PROJECT, 'node_modules', 'flatted')));
+	}
+	return typeof execution.data === 'string' ? parse(execution.data) : execution.data;
+}
+
+async function getExecution(executionId) {
+	for (let i = 0; i < 60; i++) {
+		const execution = await api('GET', `/rest/executions/${executionId}?includeData=true`);
+		if (execution.finished || ['success', 'error', 'crashed', 'canceled'].includes(execution.status)) return execution;
+		await wait(1000);
+	}
+	throw new Error(`Execution ${executionId} did not finish`);
+}
+
+async function main() {
+	requireEnv();
+	await startN8n();
+	await setupOwnerAndLogin();
+	const credential = await createSynologyCredential();
+	const workflow = await createWorkflow(credential);
+	const executionId = await runWorkflow(workflow.id);
+	const execution = await getExecution(executionId);
+	const data = parseExecutionData(execution);
+	const summary = Object.fromEntries(Object.entries(data.resultData.runData).map(([node, runs]) => [node, runs.map((run) => ({
+		status: run.executionStatus || (run.error ? 'error' : 'success'),
+		error: run.error?.message,
+		json: run.data?.main?.[0]?.map((item) => item.json),
+	}))]));
+	console.log(JSON.stringify({ workflowId: workflow.id, executionId, status: execution.status, finished: execution.finished, lastNode: data.resultData.lastNodeExecuted, summary }, null, 2));
+	if (execution.status !== 'success') {
+		throw new Error(`Execution failed: ${data.resultData.error?.message || execution.status}`);
+	}
+}
+
+main().catch((error) => {
+	console.error(error.stack || error.message);
+	process.exitCode = 1;
+}).finally(() => {
+	if (n8nProcess) n8nProcess.kill('SIGTERM');
+});

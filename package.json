@@ -32,10 +32,11 @@
     "lintfix": "eslint nodes/**/*.ts credentials/**/*.ts package.json --fix",
     "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes/**/*.ts credentials/**/*.ts package.json",
     "test:e2e:n8n": "node test/e2e-n8n-workflow.js",
+    "test:e2e:n8n:notestation:expanded": "node test/e2e-n8n-notestation-expanded.js",
     "test:e2e:n8n:evaluation": "node test/e2e-n8n-evaluation.js",
     "test:e2e:drive:direct": "python3 test/e2e-drive-direct.py",
     "test:e2e:drive:n8n": "node test/e2e-drive-n8n-workflow.js",
-    "test:e2e": "npm run test:e2e:drive:direct && npm run test:e2e:drive:n8n"
+    "test:e2e": "npm run test:e2e:drive:direct && npm run test:e2e:drive:n8n && npm run test:e2e:n8n && npm run test:e2e:n8n:notestation:expanded"
   },
   "files": [
     "dist"

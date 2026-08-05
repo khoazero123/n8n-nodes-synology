@@ -1,7 +1,18 @@
-import type { IDataObject } from 'n8n-workflow';
+import type { IDataObject, IN8nHttpFullResponse } from 'n8n-workflow';
 import {
 	NOTE_API,
 	NOTE_API_VERSION,
+	NOTE_VERSION_API,
+	NOTE_VERSION_API_VERSION,
+	NOTE_ENCRYPT_API,
+	NOTE_ENCRYPT_API_VERSION,
+	EXPORT_NOTE_API,
+	EXPORT_NOTEBOOK_API,
+	EXPORT_WORD_API,
+	EXPORT_API_VERSION,
+	IMPORT_NOTEBOOK_API,
+	IMPORT_ENEX_API,
+	IMPORT_API_VERSION,
 	NOTE_STATION_SESSION,
 	NOTEBOOK_API,
 	NOTEBOOK_API_VERSION,
@@ -40,6 +51,10 @@ import type {
 	RemoveIndividualShareInput,
 	UpdateNotebookInput,
 	UpdateNoteInput,
+	VersionInput,
+	EncryptInput,
+	ExportInput,
+	ImportInput,
 } from './types';
 import type { SynologyClient } from '../../transport/SynologyClient';
 
@@ -207,6 +222,105 @@ export class NoteStationClient {
 		});
 	}
 
+	async restoreNote(objectId: string): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: NOTE_API,
+			version: NOTE_API_VERSION,
+			method: 'restore',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: objectId },
+		});
+	}
+
+	async listVersions(input: VersionInput): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: NOTE_VERSION_API,
+			version: NOTE_VERSION_API_VERSION,
+			method: 'list',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: input.objectId },
+		});
+	}
+
+	async getVersion(input: VersionInput): Promise<NoteStationData> {
+		const params: IDataObject = { object_id: input.objectId };
+		if (input.version) params.version = input.version;
+		return await this.synology.request({
+			api: NOTE_VERSION_API,
+			version: NOTE_VERSION_API_VERSION,
+			method: 'get',
+			session: NOTE_STATION_SESSION,
+			params,
+		});
+	}
+
+	async restoreVersion(input: VersionInput): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: NOTE_VERSION_API,
+			version: NOTE_VERSION_API_VERSION,
+			method: 'restore',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: input.objectId, version: input.version },
+		});
+	}
+
+	async createEncryptToken(input: EncryptInput): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: NOTE_ENCRYPT_API,
+			version: NOTE_ENCRYPT_API_VERSION,
+			method: 'create',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: input.objectId, password: input.password, duration: input.duration ?? 120 },
+		});
+	}
+
+	async checkEncryptToken(input: EncryptInput): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: NOTE_ENCRYPT_API,
+			version: NOTE_ENCRYPT_API_VERSION,
+			method: 'check',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: input.objectId, token: input.token },
+		});
+	}
+
+	async deleteEncryptToken(input: EncryptInput): Promise<NoteStationData> {
+		return await this.synology.request({
+			api: NOTE_ENCRYPT_API,
+			version: NOTE_ENCRYPT_API_VERSION,
+			method: 'delete',
+			session: NOTE_STATION_SESSION,
+			params: { object_id: input.objectId, token: input.token },
+		});
+	}
+
+	async startExport(input: ExportInput, format: 'note' | 'word' | 'notebook'): Promise<NoteStationData> {
+		const api = format === 'note' ? EXPORT_NOTE_API : format === 'word' ? EXPORT_WORD_API : EXPORT_NOTEBOOK_API;
+		const params: IDataObject = { object_id: input.objectId };
+		if (input.timezoneOffset !== undefined) params.timezone_offset = input.timezoneOffset;
+		if (input.token) params.token = input.token;
+		return await this.synology.request({ api, version: EXPORT_API_VERSION, method: 'start', session: NOTE_STATION_SESSION, params });
+	}
+
+	async exportStatus(taskId: string, format: 'note' | 'word' | 'notebook'): Promise<NoteStationData> {
+		const api = format === 'note' ? EXPORT_NOTE_API : format === 'word' ? EXPORT_WORD_API : EXPORT_NOTEBOOK_API;
+		return await this.synology.request({ api, version: EXPORT_API_VERSION, method: 'status', session: NOTE_STATION_SESSION, params: { task_id: taskId } });
+	}
+
+	async downloadExport(taskId: string, format: 'note' | 'word' | 'notebook'): Promise<IN8nHttpFullResponse> {
+		const api = format === 'note' ? EXPORT_NOTE_API : format === 'word' ? EXPORT_WORD_API : EXPORT_NOTEBOOK_API;
+		return await this.synology.requestBinary({ api, version: EXPORT_API_VERSION, method: 'download', session: NOTE_STATION_SESSION, params: { task_id: taskId, remove: true } });
+	}
+
+	async importFile(input: ImportInput, format: 'enex' | 'notebook'): Promise<NoteStationData> {
+		const api = format === 'enex' ? IMPORT_ENEX_API : IMPORT_NOTEBOOK_API;
+		return await this.synology.requestMultipart(
+			{ api, version: IMPORT_API_VERSION, method: 'start', session: NOTE_STATION_SESSION },
+			{ fieldName: input.filename, filename: input.filename, data: input.data, contentType: input.contentType },
+			{ file: JSON.stringify([{ format: 'raw', name: input.filename }]) },
+		);
+	}
+
 	async setStack(input: SetStackInput): Promise<NoteStationData> {
 		const params: IDataObject = { name: input.name };
 		if (input.stackId) params.stack_id = input.stackId;
@@ -316,7 +430,7 @@ export class NoteStationClient {
 			version: SHARE_PRIV_API_VERSION,
 			method: 'list',
 			session: NOTE_STATION_SESSION,
-			params: listParams(input),
+			params: { query: '', ...listParams(input) },
 		});
 	}
 

@@ -84,4 +84,30 @@ export interface RemoveIndividualShareInput {
 	name: string;
 }
 
+export interface VersionInput {
+	objectId: string;
+	version?: string;
+}
+
+export interface EncryptInput {
+	objectId: string;
+	password?: string;
+	token?: string;
+	duration?: number;
+}
+
+export interface ExportInput {
+	objectId: string;
+	taskId?: string;
+	timezoneOffset?: number;
+	token?: string;
+	remove?: boolean;
+}
+
+export interface ImportInput {
+	filename: string;
+	data: Buffer;
+	contentType?: string;
+}
+
 export type NoteStationData = IDataObject;

@@ -1,3 +1,4 @@
+import { NodeOperationError } from 'n8n-workflow';
 import type {
 	IExecuteFunctions,
 	INodeExecutionData,
@@ -24,7 +25,14 @@ const noteOperations = [
 	{ name: 'Get', value: 'get', action: 'Get a note' },
 	{ name: 'Get Many', value: 'getMany', action: 'Get many notes' },
 	{ name: 'Prepend Content', value: 'prepend', action: 'Prepend note content' },
+	{ name: 'Restore', value: 'restore', action: 'Restore a note from recycle bin' },
 	{ name: 'Update', value: 'update', action: 'Update a note' },
+];
+
+const versionOperations = [
+	{ name: 'Get', value: 'get', action: 'Get a note version' },
+	{ name: 'Get Many', value: 'getMany', action: 'Get many note versions' },
+	{ name: 'Restore', value: 'restore', action: 'Restore a note version' },
 ];
 
 const shelfOperations = [
@@ -52,6 +60,23 @@ const infoOperations = [
 	{ name: 'Get', value: 'get', action: 'Get Note Station information' },
 ];
 
+const encryptionOperations = [
+	{ name: 'Create Token', value: 'create', action: 'Create an encryption token' },
+	{ name: 'Check Token', value: 'check', action: 'Check an encryption token' },
+	{ name: 'Delete Token', value: 'delete', action: 'Delete an encryption token' },
+];
+
+const exportOperations = [
+	{ name: 'Start', value: 'start', action: 'Start an export task' },
+	{ name: 'Status', value: 'status', action: 'Get export task status' },
+	{ name: 'Download', value: 'download', action: 'Download a completed export' },
+];
+
+const importOperations = [
+	{ name: 'Import ENEX', value: 'enex', action: 'Import an ENEX file' },
+	{ name: 'Import Notebook', value: 'notebook', action: 'Import a Note Station notebook export' },
+];
+
 export class SynologyNoteStation implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Synology Note Station',
@@ -73,13 +98,16 @@ export class SynologyNoteStation implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
-					{ name: 'Attachment', value: 'attachment' },
 					{ name: 'Info', value: 'info' },
 					{ name: 'Note', value: 'note' },
 					{ name: 'Notebook', value: 'notebook' },
 					{ name: 'Share', value: 'share' },
 					{ name: 'Shelf', value: 'shelf' },
 					{ name: 'Tag', value: 'tag' },
+					{ name: 'Version', value: 'version' },
+					{ name: 'Encryption', value: 'encryption' },
+					{ name: 'Export', value: 'export' },
+					{ name: 'Import', value: 'import' },
 				],
 				default: 'note',
 			},
@@ -128,6 +156,22 @@ export class SynologyNoteStation implements INodeType {
 				displayOptions: { show: { resource: ['info'] } }, options: infoOperations, default: 'get',
 			},
 			{
+				displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true,
+				displayOptions: { show: { resource: ['version'] } }, options: versionOperations, default: 'getMany',
+			},
+			{
+				displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true,
+				displayOptions: { show: { resource: ['encryption'] } }, options: encryptionOperations, default: 'create',
+			},
+			{
+				displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true,
+				displayOptions: { show: { resource: ['export'] } }, options: exportOperations, default: 'start',
+			},
+			{
+				displayName: 'Operation', name: 'operation', type: 'options', noDataExpression: true,
+				displayOptions: { show: { resource: ['import'] } }, options: importOperations, default: 'enex',
+			},
+			{
 				displayName: 'Object ID',
 				name: 'objectId',
 				type: 'string',
@@ -147,13 +191,56 @@ export class SynologyNoteStation implements INodeType {
 				type: 'string',
 				required: true,
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['note'],
-						operation: ['get', 'update', 'delete', 'append', 'prepend'],
+					displayOptions: {
+						show: {
+							resource: ['note'],
+							operation: ['get', 'update', 'delete', 'restore', 'append', 'prepend'],
+						},
 					},
-				},
 				description: 'Note object_id',
+			},
+			{
+				displayName: 'Object ID',
+				name: 'objectId',
+				type: 'string',
+				required: true,
+				default: '',
+				displayOptions: { show: { resource: ['version'], operation: ['get', 'getMany', 'restore'] } },
+				description: 'Note object_id',
+			},
+			{
+				displayName: 'Version',
+				name: 'version',
+				type: 'string',
+				default: '',
+				displayOptions: { show: { resource: ['version'], operation: ['get', 'restore'] } },
+				description: 'Version hash. Leave empty on get to fetch the latest version metadata returned by the API.',
+			},
+			{
+				displayName: 'Password', name: 'password', type: 'string', typeOptions: { password: true }, default: '',
+				displayOptions: { show: { resource: ['encryption'], operation: ['create'] } },
+			},
+			{
+				displayName: 'Token', name: 'token', type: 'string', typeOptions: { password: true }, default: '',
+				displayOptions: { show: { resource: ['encryption'], operation: ['check', 'delete'] } },
+			},
+			{
+				displayName: 'Export Object ID', name: 'exportObjectId', type: 'string', required: true, default: '',
+				displayOptions: { show: { resource: ['export'], operation: ['start'] } },
+			},
+			{
+				displayName: 'Export Format', name: 'exportFormat', type: 'options',
+				options: [{ name: 'HTML', value: 'note' }, { name: 'Word', value: 'word' }, { name: 'Notebook', value: 'notebook' }], default: 'note',
+				displayOptions: { show: { resource: ['export'] } },
+			},
+			{
+				displayName: 'Task ID', name: 'taskId', type: 'string', default: '',
+				displayOptions: { show: { resource: ['export'], operation: ['status', 'download'] } },
+			},
+			{
+				displayName: 'Binary Property', name: 'binaryProperty', type: 'string', default: 'data',
+				displayOptions: { show: { resource: ['import'] } },
+				description: 'Input binary property containing the ENEX or Notebook file',
 			},
 			{
 				displayName: 'Notebook ID',
@@ -340,12 +427,13 @@ export class SynologyNoteStation implements INodeType {
 				if (operation === 'append') data = await noteStation.appendNoteContent(this.getNodeParameter('objectId', i) as string, this.getNodeParameter('content', i) as string, 'append');
 				if (operation === 'prepend') data = await noteStation.appendNoteContent(this.getNodeParameter('objectId', i) as string, this.getNodeParameter('content', i) as string, 'prepend');
 				if (operation === 'delete') data = await noteStation.deleteNote({ objectId: this.getNodeParameter('objectId', i) as string, recycle: this.getNodeParameter('recycle', i) as boolean });
+				if (operation === 'restore') data = await noteStation.restoreNote(this.getNodeParameter('objectId', i) as string);
 			} else if (resource === 'shelf') {
 				if (operation === 'create') data = await noteStation.setStack({ name: this.getNodeParameter('name', i) as string });
 				if (operation === 'rename') data = await noteStation.setStack({ stackId: this.getNodeParameter('stackId', i) as string, name: this.getNodeParameter('name', i) as string });
 				if (operation === 'delete') data = await noteStation.deleteStack({ stackId: this.getNodeParameter('stackId', i) as string });
 			} else if (resource === 'share') {
-				const objectId = this.getNodeParameter('shareObjectId', i) as string;
+				const objectId = operation === 'listPrincipals' ? '' : this.getNodeParameter('shareObjectId', i) as string;
 				if (operation === 'setPublic') data = await noteStation.setPublicShare({ objectId, permission: this.getNodeParameter('permission', i) as 'ro' | 'rw' });
 				if (operation === 'deletePublic') data = await noteStation.deletePublicShare({ objectId });
 				if (operation === 'getPublicLink') data = await noteStation.getPublicShareLink({ objectId });
@@ -358,6 +446,36 @@ export class SynologyNoteStation implements INodeType {
 				if (operation === 'getMany') data = await noteStation.listTags({ limit: this.getNodeParameter('limit', i) as number, offset: this.getNodeParameter('offset', i) as number });
 			} else if (resource === 'info') {
 				if (operation === 'get') data = await noteStation.getInfo();
+			} else if (resource === 'version') {
+				const objectId = this.getNodeParameter('objectId', i) as string;
+				if (operation === 'getMany') data = await noteStation.listVersions({ objectId });
+				if (operation === 'get') data = await noteStation.getVersion({ objectId, version: this.getNodeParameter('version', i) as string || undefined });
+				if (operation === 'restore') data = await noteStation.restoreVersion({ objectId, version: this.getNodeParameter('version', i) as string });
+			} else if (resource === 'encryption') {
+				const objectId = this.getNodeParameter('objectId', i) as string;
+				if (operation === 'create') data = await noteStation.createEncryptToken({ objectId, password: this.getNodeParameter('password', i) as string });
+				if (operation === 'check') data = await noteStation.checkEncryptToken({ objectId, token: this.getNodeParameter('token', i) as string });
+				if (operation === 'delete') data = await noteStation.deleteEncryptToken({ objectId, token: this.getNodeParameter('token', i) as string });
+			} else if (resource === 'export') {
+				const format = this.getNodeParameter('exportFormat', i) as 'note' | 'word' | 'notebook';
+				if (operation === 'start') data = await noteStation.startExport({ objectId: this.getNodeParameter('exportObjectId', i) as string }, format);
+				if (operation === 'status') data = await noteStation.exportStatus(this.getNodeParameter('taskId', i) as string, format);
+				if (operation === 'download') {
+					const response = await noteStation.downloadExport(this.getNodeParameter('taskId', i) as string, format);
+					const buffer = await this.helpers.binaryToBuffer(response.body as Buffer | import('stream').Readable);
+					const headers = response.headers as Record<string, string>;
+					const fileName = /filename="?([^";]+)"?/i.exec(headers['content-disposition'] ?? '')?.[1] ?? `notestation-${format}`;
+					const mimeType = headers['content-type']?.split(';')[0] ?? 'application/octet-stream';
+					const binary = await this.helpers.prepareBinaryData(buffer, fileName, mimeType);
+					returnData.push({ json: {}, binary: { data: binary }, pairedItem: { item: i } });
+					continue;
+				}
+			} else if (resource === 'import') {
+				const binaryProperty = this.getNodeParameter('binaryProperty', i) as string;
+				const binary = items[i].binary?.[binaryProperty];
+				if (!binary) throw new NodeOperationError(this.getNode(), `Binary property '${binaryProperty}' was not found`, { itemIndex: i });
+				const buffer = await this.helpers.getBinaryDataBuffer(i, binaryProperty);
+				data = await noteStation.importFile({ filename: binary.fileName ?? `${operation}.bin`, data: buffer, contentType: binary.mimeType }, operation as 'enex' | 'notebook');
 			}
 
 			returnData.push({ json: data ?? { message: `Operation ${resource}.${operation} is planned but not implemented yet` }, pairedItem: { item: i } });

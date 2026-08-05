@@ -28,6 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 For releases prior to v0.0.2, please refer to the git commit history.
 
+## [0.0.4] - 2026-08-05
+
+### Fixed
+- Removed the `form-data` runtime dependency. Multipart uploads are now built with standard Node.js `Buffer` and `crypto` primitives, satisfying the n8n community-package requirement of an empty `dependencies` field.
+- Split Drive login into its own helper so requests no longer mix `getCredentials()` with manual `httpRequest()` calls.
+- Added a credential test (`SYNO.API.Auth` login with `responseSuccessBody` validation) to the shared `Synology API` credential.
+- Marked the `allowUnauthorizedCerts` credential field as password-masked to satisfy the sensitive-field lint rule.
+- Added light/dark themed icons for the Drive and Note Station nodes and the shared credential.
+- Alphabetized node option lists to pass the community-package lint rules.
+- Set a valid `homepage` URL in `package.json`.
+
 ## [0.0.3] - 2026-08-05
 
 ### Added

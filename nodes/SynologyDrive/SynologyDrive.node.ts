@@ -7,38 +7,54 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
-import FormData from 'form-data';
+import { randomBytes } from 'node:crypto';
 import { generatePairedItemData } from './GenericFunctions';
 
-const driveSessions = new Map<string, { sid: string; deviceId: string }>();
+interface DriveSession {
+	sid: string;
+	deviceId: string;
+}
+
+interface DriveCredentials {
+	baseUrl?: string;
+	username?: string;
+	password?: string;
+	allowUnauthorizedCerts?: boolean;
+}
+
+const driveSessions = new Map<string, DriveSession>();
+
+async function driveLogin(this: IExecuteSingleFunctions, credentials: DriveCredentials): Promise<DriveSession> {
+	const response = await this.helpers.httpRequest({
+		method: 'POST',
+		url: `${String(credentials.baseUrl).replace(/\/$/, '')}/api/SynologyDrive/default/v1/login`,
+		headers: {
+			'Content-Type': 'application/json',
+			Accept: 'application/json',
+		},
+		body: {
+			format: 'sid',
+			account: credentials.username,
+			passwd: credentials.password,
+		},
+		json: true,
+		skipSslCertificateValidation: Boolean(credentials.allowUnauthorizedCerts ?? false),
+	}) as { success?: boolean; data?: { sid?: string; did?: string }; error?: { code?: number } };
+
+	if (!response.success || !response.data?.sid || !response.data.did) {
+		throw new NodeOperationError(this.getNode(), `Failed to login to Synology Drive (error ${response.error?.code ?? 0})`);
+	}
+
+	return { sid: response.data.sid, deviceId: response.data.did };
+}
 
 async function authenticateDriveRequest(this: IExecuteSingleFunctions, requestOptions: IHttpRequestOptions): Promise<IHttpRequestOptions> {
 	const executionId = this.getExecutionId();
 	let session = driveSessions.get(executionId);
-	const credentials = await this.getCredentials('synologyApi');
+	const credentials = await this.getCredentials<DriveCredentials>('synologyApi');
 
 	if (!session) {
-		const response = await this.helpers.httpRequest({
-			method: 'POST',
-			url: `${String(credentials.baseUrl).replace(/\/$/, '')}/api/SynologyDrive/default/v1/login`,
-			headers: {
-				'Content-Type': 'application/json',
-				Accept: 'application/json',
-			},
-			body: {
-				format: 'sid',
-				account: credentials.username,
-				passwd: credentials.password,
-			},
-			json: true,
-			skipSslCertificateValidation: Boolean(credentials.allowUnauthorizedCerts ?? false),
-		}) as { success?: boolean; data?: { sid?: string; did?: string }; error?: { code?: number } };
-
-		if (!response.success || !response.data?.sid || !response.data.did) {
-			throw new NodeOperationError(this.getNode(), `Failed to login to Synology Drive (error ${response.error?.code ?? 0})`);
-		}
-
-		session = { sid: response.data.sid, deviceId: response.data.did };
+		session = await driveLogin.call(this, credentials);
 		driveSessions.set(executionId, session);
 	}
 
@@ -50,11 +66,44 @@ async function authenticateDriveRequest(this: IExecuteSingleFunctions, requestOp
 	return requestOptions;
 }
 
+interface MultipartPart {
+	fieldName: string;
+	filename?: string;
+	contentType?: string;
+	data: Buffer;
+}
+
+function buildMultipartBody(fields: Record<string, string>, parts: MultipartPart[]): { body: Buffer; contentType: string; contentLength: number } {
+	const boundary = `----n8nSynologyDrive${randomBytes(16).toString('hex')}`;
+	const crlf = '\r\n';
+	const chunks: Buffer[] = [];
+
+	for (const [key, value] of Object.entries(fields)) {
+		chunks.push(Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="${key}"${crlf}${crlf}${value}${crlf}`, 'utf8'));
+	}
+
+	for (const part of parts) {
+		const filenameHeader = part.filename ? `; filename="${part.filename.replace(/"/g, '\\"')}"` : '';
+		const contentTypeHeader = part.contentType ? `${crlf}Content-Type: ${part.contentType}` : '';
+		chunks.push(Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="${part.fieldName}"${filenameHeader}${contentTypeHeader}${crlf}${crlf}`, 'utf8'));
+		chunks.push(part.data);
+		chunks.push(Buffer.from(crlf, 'utf8'));
+	}
+
+	chunks.push(Buffer.from(`--${boundary}--${crlf}`, 'utf8'));
+	const body = Buffer.concat(chunks);
+	return {
+		body,
+		contentType: `multipart/form-data; boundary=${boundary}`,
+		contentLength: body.length,
+	};
+}
+
 export class SynologyDrive implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Synology Drive',
 		name: 'synologyDrive',
-		icon: 'file:SynologyDrive.svg',
+		icon: { light: 'file:SynologyDrive.svg', dark: 'file:SynologyDrive-dark.svg' },
 		group: ['input'],
 		version: 1,
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
@@ -214,7 +263,6 @@ export class SynologyDrive implements INodeType {
 									requestOptions.headers = {
 										...requestOptions.headers,
 									};
-									const body = new FormData();
 
 									const binaryPropertyName = this.getNodeParameter('binaryPropertyName') as string;
 									if (!binaryPropertyName) {
@@ -236,18 +284,24 @@ export class SynologyDrive implements INodeType {
 
 									this.logger.debug(`Upload path: ${path}`);
 
-									body.append('conflict_action', conflictAction);
-									body.append('path', path);
-									body.append('type', 'file');
-									body.append('file', binaryDataBuffer, {
-										filename: binaryData.fileName,
-										contentType: binaryData.mimeType,
-										knownLength: binaryDataBuffer.length,
-									});
-									requestOptions.body = body;
-									requestOptions.headers['Content-Length'] = body.getLengthSync();
-									requestOptions.headers['Content-Type'] = `multipart/related; boundary=${body.getBoundary()}`;
-									requestOptions.headers['Content-Type'] = 'multipart/form-data';
+									const multipart = buildMultipartBody(
+										{
+											conflict_action: conflictAction,
+											path,
+											type: 'file',
+										},
+										[
+											{
+												fieldName: 'file',
+												filename: fileName,
+												contentType: binaryData.mimeType ?? 'application/octet-stream',
+												data: binaryDataBuffer,
+											},
+										],
+									);
+									requestOptions.body = multipart.body;
+									requestOptions.headers['Content-Type'] = multipart.contentType;
+									requestOptions.headers['Content-Length'] = String(multipart.contentLength);
 									return requestOptions;
 								}],
 							},
@@ -490,10 +544,10 @@ export class SynologyDrive implements INodeType {
 				type: 'options',
 				options: [
 					{ name: 'Modified Time', value: 'modified_time' },
-					{ name: 'Size', value: 'size' },
-					{ name: 'Owner', value: 'owner' },
-					{ name: 'Type', value: 'type' },
 					{ name: 'Name', value: 'name' },
+					{ name: 'Owner', value: 'owner' },
+					{ name: 'Size', value: 'size' },
+					{ name: 'Type', value: 'type' },
 				],
 				default: 'modified_time',
 				displayOptions: {

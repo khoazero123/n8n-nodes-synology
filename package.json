@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-synology",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "n8n community nodes for Synology NAS applications",
   "keywords": [
     "n8n-community-node-package",
@@ -11,7 +11,7 @@
     "synology-download-station"
   ],
   "license": "MIT",
-  "homepage": "",
+  "homepage": "https://github.com/megavnet/n8n-nodes-synology",
   "author": {
     "name": "KhoaZero123",
     "email": "khoazero123@gmail.com"
@@ -59,9 +59,7 @@
     "prettier": "^3.5.3",
     "typescript": "^5.8.2"
   },
-  "dependencies": {
-    "form-data": "^4.0.4"
-  },
+  "dependencies": {},
   "peerDependencies": {
     "n8n-workflow": "*"
   }

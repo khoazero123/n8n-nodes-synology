@@ -45,9 +45,7 @@ Real E2E coverage currently verifies notebook/note lifecycle, append, version li
 
 ### Still pending
 
-- Attachment upload/list/download/delete.
-- Attachment upload/list/download/delete.
-- Dedicated real E2E coverage for encryption, import/export, version restore, recycle-bin restore, user/group share mutation, and shelf operations.
+- Dedicated real E2E coverage for encryption, import/export, attachment CRUD, version restore, recycle-bin restore, user/group share mutation, and shelf operations.
 
 Known tested API facts from local NAS discovery:
 

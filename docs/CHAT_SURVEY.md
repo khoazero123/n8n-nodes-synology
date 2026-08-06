@@ -110,3 +110,40 @@ with `encrypted = t` in DB, created both via API probe and the node).
   "", private_key_enc: ""}` (returns success, restores original state).
 - E2E: `test/e2e-chat-encrypted.js` — create encrypted channel via node,
   verify encrypted flag in DB, cleanup (SQL).
+
+## Outgoing webhooks & Chat trigger (2026-08-06, verified live)
+
+### Webhook.Outgoing API
+- `SYNO.Chat.Webhook.Outgoing.create` (no params) → `{token, user_id}`.
+- `Webhook.Outgoing.set {user_id, channel_id, trigger_word, url}` — bind
+  channel + trigger word + destination URL. `channel_id: 0` = any channel
+  (then trigger word required).
+- `Bot.set {user_id, nickname}` + `Bot.enable` — same as incoming webhooks.
+- `Webhook.Outgoing.list/get` — get returns token. Delete via `Bot.delete`.
+
+### Trigger semantics (IMPORTANT)
+- Outgoing webhook fires when a message **created through the real Chat
+  client (UI / websocket)** matches: channel + message starts with
+  `trigger_word` (or any message if no trigger word and channel set).
+- **Messages created via REST API do NOT trigger outgoing webhooks**
+  (verified: `Post.create` and `External.incoming` both posted successfully
+  but the outgoing webhook never fired). This is a server-side design
+  choice to avoid bot loops.
+- Outgoing webhook POST payload: `token, channel_id, channel_name, user_id,
+  username, post_id, timestamp, text, trigger_word`. Reply JSON body
+  `{"text": "..."}` posts back into the channel.
+
+### n8n integration (verified)
+- n8n community nodes cannot register webhooks → use the core **Webhook
+  Trigger** node to receive Chat outgoing webhooks.
+- n8n 2.33: activating a webhook workflow via REST (`PATCH
+  /rest/workflows/{id} {active:true}`) returns 200 but stays inactive.
+  Use CLI + restart:
+  ```
+  docker exec n8n-dev n8n update:workflow --id <id> --active true
+  docker restart n8n-dev
+  ```
+  After restart the webhook is registered and POSTs to
+  `/webhook/<path>` return 200 "Workflow was started".
+- For testing: the outgoing webhook URL must be reachable from the NAS
+  (e.g. `http://10.10.20.104:5680/webhook/<path>` on this network).

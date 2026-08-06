@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.9] - 2026-08-06
+
+### Added
+- Download Station: V1→V2 URL create fallback (verified live on DSM 7).
+- Download Station: new `Task List` resource — Get Files, Confirm Download,
+  Get Download Status, Stop Download, Delete (full `create_list=true` flow).
+- Download Station: `Edit` task operation (destination or priority).
+- Download Station: `Download Source` operation (re-download original torrent
+  binary via `SYNO.DownloadStation2.Task.Source`).
+- Download Station E2E coverage for torrent upload, task-list flow, edit and
+  source download against a live NAS.
+
+### Fixed
+- Transport: `X-SYNO-TOKEN` header now sent on every request (NAS returns
+  error 105 for `_sid`-only requests on token-enabled sessions); session
+  cache keeps `synotoken` alongside `sid`.
+
 ## [Unreleased]
 
 ### Added

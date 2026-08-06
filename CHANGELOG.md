@@ -5,7 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-08-06
+## [Unreleased]
+
+### Added
+- Synology Chat `SynologyChat` node (verified live on DSM 7 / Chat 2.4.6):
+  - Message: Send via webhook token (External API, no session), list
+    channels/users/posts visible to a bot token.
+  - Webhook (incoming): Create (4-step lifecycle: create → set channel →
+    Bot.set nickname → enable), List, Get (returns token), Set, Delete.
+  - Outgoing Webhook: Create (channel + trigger word + destination URL),
+    List, Get, Set, Delete. Note: only fires for messages created via the
+    real Chat client (UI/websocket), not REST API posts.
+  - Chatbot: Create/List/Get/Set/Delete (max 5 per user).
+  - Channel: List/Get/Create — encrypted channels supported
+    (`type: private` + `encrypted: true`; requires the user to have an E2E
+    keypair enabled in Chat UI).
+  - Post: List.
+- E2E suites: `test/e2e-chat-n8n.js` (8/8), `test/e2e-chat-encrypted.js`
+  (3/3), `test/e2e-chat-outgoing.js` (5/5) — all pass live, NAS clean.
+
+### Fixed
+- Transport: outgoing webhook and channel-create research documented in
+  `docs/CHAT_SURVEY.md` (keypair format, type=private requirement,
+  n8n 2.33 webhook activation via CLI + restart).
+
+
 
 ### Added
 - Synology MailPlus `SynologyMailClient`: 14 extended operations (all

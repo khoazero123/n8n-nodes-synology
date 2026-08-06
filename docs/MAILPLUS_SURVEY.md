@@ -67,3 +67,17 @@ Workflow: Get Info → Mailboxes → Labels → Threads (inbox) → Message get 
 - **set_mailbox param order** dễ nhầm: `mailbox_id` = ĐÍCH, `operate_mailbox_id` = NGUỒN.
 - `Message.download_original` và `Attachment.download` trả binary — dùng `requestBinary` trong transport.
 - MailPlusServer admin APIs (66) không cover — nếu cần sau này (quản trị account/domain/security) phải dùng session admin riêng.
+
+
+## 7. Trigger Node — `Synology MailTrigger` (`synologyMailTrigger`)
+
+Polling trigger (MailPlus không có webhook push). Mỗi poll gọi `Thread.list` cho mailbox chọn, so với `staticData` (thread ids đã thấy), emit các thread mới.
+
+Params:
+- **Mailbox**: inbox/archived/drafts/sent/spam/trash/scheduled (default inbox)
+- **Search Keyword**: lọc thread theo keyword
+- **Max Threads Per Poll**: default 50
+
+Output item: `{mailbox, mailboxId, thread, message, triggeredAt}`. Dedup qua `getWorkflowStaticData('global')` key `mailSeen_<mailbox>`.
+
+Verified live 2026-08-06: gửi email test → poll emit thread mới với subject đúng (E2E `test/e2e-mailtrigger-n8n.js`).

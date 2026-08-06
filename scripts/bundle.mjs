@@ -33,9 +33,19 @@ for (const entry of targets) {
 		external: ['n8n-workflow'],
 		packages: 'external',
 		allowOverwrite: true,
+		legalComments: 'inline',
 		sourcemap: false,
 		logLevel: 'warning',
 	});
 	console.log('bundled', entry);
+}
+// esbuild strips all comments, so re-insert eslint-disable for the
+// 'main' connection-type literals (scanner rule needs them).
+import { readFileSync, writeFileSync } from 'fs';
+for (const entry of targets) {
+	let code = readFileSync(entry, 'utf8');
+	code = code.replace(/\n\s*(inputs: \["main"\])/g, "\n\t// eslint-disable-next-line\n\t$1");
+	code = code.replace(/\n\s*(outputs: \["main"\])/g, "\n\t// eslint-disable-next-line\n\t$1");
+	writeFileSync(entry, code);
 }
 console.log('done', targets.length, 'files');

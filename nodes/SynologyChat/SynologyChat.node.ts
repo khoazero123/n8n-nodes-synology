@@ -5,7 +5,6 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import {  } from 'n8n-workflow';
 import { ChatClient } from '../../apps/chatClient/ChatClient';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
@@ -61,7 +60,9 @@ export class SynologyChat implements INodeType {
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Work with Synology Chat: send messages via webhooks, manage bots and webhooks, list channels and posts',
 		defaults: { name: 'Synology Chat' },
+		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
 		inputs: ['main'],
+		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
 		outputs: ['main'],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,

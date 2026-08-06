@@ -18,6 +18,7 @@ from urllib.request import Request, urlopen
 from urllib.parse import urlencode
 from urllib.error import HTTPError
 import ssl
+import time
 
 BASE_URL = os.environ.get("SYNO_BASE_URL", "").rstrip("/")
 ACCOUNT = os.environ.get("SYNO_ACCOUNT", "")
@@ -36,11 +37,14 @@ def fail(msg):
 def ok(msg):
     print(f"  ✅ {msg}")
 
-def api_request(path, params, json_response=True):
+def api_request(path, params, json_response=True, headers=None):
     """Send a POST request to the Synology WebAPI."""
     url = f"{BASE_URL}/webapi/{path.lstrip('/')}"
     body = urlencode(params).encode("utf-8")
-    req = Request(url, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"})
+    req_headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    if headers:
+        req_headers.update(headers)
+    req = Request(url, data=body, headers=req_headers)
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
@@ -179,6 +183,88 @@ def main():
         fail(f"BT search failed: {bt_resp.get('error')}")
 
     if ALLOW_DESTRUCTIVE:
+        # 8b. V2 torrent upload via frontend contract (cookie auth + X-SYNO-TOKEN).
+        # Verified 2026-08-06: needs `enable_syno_token=yes` login, Cookie: id=<sid>
+        # header + X-SYNO-TOKEN, multipart fields in exact frontend order, and
+        # binary-safe CRLF construction (a bytes repr bug corrupts the body).
+        print("\n📡 8b. V2 Torrent Upload (SYNO.DownloadStation2.Task v2, cookie auth)...")
+        import uuid as _uuid, time as _time
+        torrent_created = False
+        torrent_path = os.environ.get("SYNO_TORRENT_PATH", "")
+        if torrent_path and os.path.isfile(torrent_path):
+            # login with syno token to get X-SYNO-TOKEN
+            lr2 = api_request("entry.cgi", {
+                "api": "SYNO.API.Auth", "version": "7", "method": "login",
+                "account": ACCOUNT, "passwd": PASSWORD,
+                "session": "DownloadStation", "format": "sid",
+                "enable_syno_token": "yes",
+            })
+            if lr2.get("success"):
+                sid2 = lr2["data"]["sid"]
+                token = lr2["data"].get("synotoken", "")
+                with open(torrent_path, "rb") as f:
+                    tdata = f.read()
+                boundary = "----n8nE2E" + _uuid.uuid4().hex[:16]
+                crlf = b"\r\n"
+                body_parts = []
+                fields = [
+                    ("api", "SYNO.DownloadStation2.Task"),
+                    ("method", "create"),
+                    ("version", "2"),
+                    ("type", '"file"'),
+                    ("file", '["torrent"]'),
+                    ("destination", json.dumps("home/Drive/Download")),
+                    ("create_list", "false"),
+                    ("mtime", str(int(_time.time() * 1000))),
+                    ("size", str(len(tdata))),
+                ]
+                for name, val in fields:
+                    body_parts.append(b"--" + boundary.encode() + crlf)
+                    body_parts.append(('Content-Disposition: form-data; name="%s"' % name).encode() + crlf + crlf)
+                    body_parts.append(val.encode() + crlf)
+                body_parts.append(b"--" + boundary.encode() + crlf)
+                body_parts.append(b'Content-Disposition: form-data; name="torrent"; filename="e2e.torrent"' + crlf)
+                body_parts.append(b"Content-Type: application/x-bittorrent" + crlf + crlf)
+                body_parts.append(tdata)
+                body_parts.append(crlf + b"--" + boundary.encode() + b"--" + crlf)
+                mbody = b"".join(body_parts)
+                url = f"{BASE_URL}/webapi/entry.cgi/SYNO.DownloadStation2.Task"
+                req = Request(url, data=mbody, headers={
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                    "Cookie": f"id={sid2}",
+                    "X-SYNO-TOKEN": token,
+                }, method="POST")
+                ctx2 = ssl.create_default_context()
+                ctx2.check_hostname = False
+                ctx2.verify_mode = ssl.CERT_NONE
+                try:
+                    with urlopen(req, context=ctx2, timeout=60) as resp:
+                        tresp = json.loads(resp.read().decode())
+                    if tresp.get("success"):
+                        tid = tresp.get("data", {}).get("task_id") or []
+                        if tid:
+                            ok(f"Torrent task created: {tid[0]}")
+                            task_id = tid[0]
+                            torrent_created = True
+                        else:
+                            ok("Torrent upload accepted (list flow)")
+                    else:
+                        fail(f"Torrent upload failed: {tresp.get('error')}")
+                except HTTPError as e:
+                    fail(f"Torrent upload HTTP error: {e.read().decode()[:200]}")
+            else:
+                fail("Login with syno token failed")
+        else:
+            print("  ⏭️  Skipping torrent upload (set SYNO_TORRENT_PATH to a .torrent file)")
+
+        if task_id and torrent_created:
+            del_t = api_request("DownloadStation/entry.cgi", {
+                "api": "SYNO.DownloadStation2.Task", "version": "2",
+                "method": "delete", "id": json.dumps([task_id]),
+            }, headers={"Cookie": f"id={sid2}", "X-SYNO-TOKEN": token})
+            print(f"  🧹 Torrent task cleanup: {del_t.get('success')}")
+            task_id = None
+
         # 8. Create a URL task. This creates a real NAS task and is opt-in.
         print("\n📡 8. Create URL Task (SYNO.DownloadStation.Task v3)...")
         test_url = "https://httpbin.org/bytes/1024"
@@ -190,16 +276,28 @@ def main():
             "_sid": sid,
         })
         if create_resp.get("success"):
-            task_id = create_resp.get("data", {}).get("task_id") or create_resp.get("data", {}).get("id")
-            if not task_id and isinstance(create_resp.get("data"), list):
-                task_id = create_resp["data"][0].get("id") if create_resp["data"] else None
+            d = create_resp.get("data")
+            task_id = None
+            if isinstance(d, dict):
+                task_id = d.get("task_id") or d.get("id")
+            elif isinstance(d, list) and d:
+                task_id = d[0].get("id")
+            if not task_id:
+                # V1 create may return {"success": true} without data; find via list
+                time.sleep(2)
+                after = api_request("DownloadStation/task.cgi", {
+                    "api": "SYNO.DownloadStation.Task", "version": "3", "method": "list", "_sid": sid,
+                })
+                tasks = after.get("data", {}).get("tasks", [])
+                if tasks:
+                    task_id = tasks[-1].get("id")
             ok(f"Task created: id={task_id}")
         else:
             print(f"  ⚠️  V1 create failed: {create_resp.get('error')}; trying undocumented V2")
 
         if not task_id:
             # 6. Try V2 create only in the explicitly enabled destructive test.
-            print("\n📡 6. Try V2 Create (SYNO.DownloadStation2.Task v2)...")
+            print("\n📡 6. Try V2 Create (SYNO.DownloadStation2.Task v2, URL)...")
             v2_resp = api_request("DownloadStation/entry.cgi", {
                 "api": "SYNO.DownloadStation2.Task",
                 "version": "2",

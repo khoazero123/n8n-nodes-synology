@@ -4,7 +4,7 @@ import { getSynologyAuthErrorMessage } from './SynologyError';
 import type { SynologyApiResponse, SynologyCredentials, SynologyRequestParams } from './types';
 
 export class SynologyClient {
-	private sidBySession = new Map<string, string>();
+	private authBySession = new Map<string, { sid: string; synotoken?: string }>();
 
 	constructor(
 		private readonly executeFunctions: IExecuteFunctions,
@@ -16,9 +16,9 @@ export class SynologyClient {
 	}
 
 	private async loginSession(session: string): Promise<{ sid: string; synotoken?: string }> {
-		const existingSid = this.sidBySession.get(session);
-		if (existingSid) {
-			return { sid: existingSid };
+		const existingAuth = this.authBySession.get(session);
+		if (existingAuth) {
+			return existingAuth;
 		}
 
 		const response = await this.rawRequest<{ sid: string; synotoken?: string }>({
@@ -41,12 +41,13 @@ export class SynologyClient {
 			});
 		}
 
-		this.sidBySession.set(session, response.data.sid);
-		return { sid: response.data.sid, synotoken: response.data.synotoken };
+		const auth = { sid: response.data.sid, synotoken: response.data.synotoken };
+		this.authBySession.set(session, auth);
+		return auth;
 	}
 
 	async logout(session: string): Promise<void> {
-		if (!this.sidBySession.has(session)) {
+		if (!this.authBySession.has(session)) {
 			return;
 		}
 
@@ -56,19 +57,20 @@ export class SynologyClient {
 			method: 'logout',
 			params: { session },
 		});
-		this.sidBySession.delete(session);
+		this.authBySession.delete(session);
 	}
 
 	async requestBinary(request: SynologyRequestParams): Promise<IN8nHttpFullResponse> {
 		const session = request.session;
-		const sid = session ? await this.login(session) : undefined;
+		const auth = session ? await this.loginSession(session) : undefined;
+		const sid = auth?.sid;
 		const params: IDataObject = { api: request.api, version: request.version, method: request.method, ...(request.params ?? {}), ...(sid ? { _sid: sid } : {}) };
 		const body = new URLSearchParams();
 		for (const [key, value] of Object.entries(params)) body.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
 		return await this.executeFunctions.helpers.httpRequest({
 			method: 'POST',
 			url: `${this.credentials.baseUrl.replace(/\/$/, '')}/webapi/entry.cgi`,
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...this.tokenHeaders(auth) },
 			body: body.toString(),
 			encoding: 'arraybuffer',
 			returnFullResponse: true,
@@ -117,14 +119,15 @@ export class SynologyClient {
 
 	async request<T extends IDataObject = IDataObject>(request: SynologyRequestParams): Promise<T> {
 		const session = request.session;
-		const sid = session ? await this.login(session) : undefined;
+		const auth = session ? await this.loginSession(session) : undefined;
+		const sid = auth?.sid;
 		const response = await this.rawRequest<T>({
 			...request,
 			params: {
 				...(request.params ?? {}),
 				...(sid ? { _sid: sid } : {}),
 			},
-		});
+		}, this.tokenHeaders(auth));
 
 		if (!response.success) {
 			throw new NodeApiError(this.executeFunctions.getNode(), response as unknown as JsonObject, {
@@ -145,7 +148,8 @@ export class SynologyClient {
 		webapiPath: string,
 	): Promise<T> {
 		const session = request.session;
-		const sid = session ? await this.login(session) : undefined;
+		const auth = session ? await this.loginSession(session) : undefined;
+		const sid = auth?.sid;
 
 		const body = new URLSearchParams();
 		const params: IDataObject = {
@@ -164,7 +168,7 @@ export class SynologyClient {
 		const options: IHttpRequestOptions = {
 			method: 'POST',
 			url: `${this.credentials.baseUrl.replace(/\/$/, '')}/webapi/${webapiPath.replace(/^\//, '')}`,
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...this.tokenHeaders(auth) },
 			body: body.toString(),
 			json: true,
 			skipSslCertificateValidation: this.credentials.allowUnauthorizedCerts ?? false,
@@ -181,7 +185,11 @@ export class SynologyClient {
 		return (response.data ?? {}) as T;
 	}
 
-	private async rawRequest<T extends IDataObject = IDataObject>(request: SynologyRequestParams): Promise<SynologyApiResponse<T>> {
+	private tokenHeaders(auth?: { sid: string; synotoken?: string }): Record<string, string> {
+		return auth?.synotoken ? { 'X-SYNO-TOKEN': auth.synotoken } : {};
+	}
+
+	private async rawRequest<T extends IDataObject = IDataObject>(request: SynologyRequestParams, extraHeaders?: Record<string, string>): Promise<SynologyApiResponse<T>> {
 		const body = new URLSearchParams();
 		const params: IDataObject = {
 			api: request.api,
@@ -206,6 +214,7 @@ export class SynologyClient {
 			url: `${this.credentials.baseUrl.replace(/\/$/, '')}/webapi/entry.cgi`,
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded',
+				...(extraHeaders ?? {}),
 			},
 			body: body.toString(),
 			json: true,

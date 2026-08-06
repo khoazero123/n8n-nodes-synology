@@ -134,6 +134,8 @@ async function main() {
 			{ name: 'Get Statistics', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'statistics', operation: 'get' }, credentials: c },
 			{ name: 'Get Tasks', type, typeVersion: 1, position: [960, 0], parameters: { resource: 'task', operation: 'getMany', limit: 10 }, credentials: c },
 			{ name: 'BT Search', type, typeVersion: 1, position: [1200, 0], parameters: { resource: 'btSearch', operation: 'search', keyword: 'ubuntu', limit: 5 }, credentials: c },
+			{ name: 'Set Binary', type: 'n8n-nodes-base.set', typeVersion: 3.4, position: [1440, 0], parameters: { assignments: { assignments: [{ id: '1', name: 'data', value: '={{ $json }}', type: 'string' }] } } },
+			{ name: 'Create Torrent', type, typeVersion: 1, position: [1680, 0], parameters: { resource: 'task', operation: 'createTorrent', binaryPropertyName: 'data', createList: false }, credentials: c },
 		];
 		const connections = {};
 		for (let i = 0; i < nodes.length - 1; i++) connections[nodes[i].name] = { main: [[{ node: nodes[i + 1].name, type: 'main', index: 0 }]] };
@@ -144,7 +146,10 @@ async function main() {
 			active: false,
 			settings: { executionOrder: 'v1' },
 			staticData: null,
-			pinData: { 'Manual Trigger': [{ json: {} }] },
+			pinData: {
+				'Manual Trigger': [{ json: {} }],
+				...(process.env.SYNO_TORRENT_PATH ? (() => { const fs = require('fs'); return { 'Set Binary': [{ json: {}, binary: { data: { data: fs.readFileSync(process.env.SYNO_TORRENT_PATH).toString('base64'), mimeType: 'application/x-bittorrent', fileName: 'e2e-upload.torrent' } } }] }; })() : {}),
+			},
 			tags: [],
 		});
 		const run = await api('POST', `/rest/workflows/${workflow.id}/run`, { triggerToStartFrom: { name: 'Manual Trigger' } });
@@ -189,6 +194,40 @@ async function main() {
 			console.log(`✅ Task list returned total=${taskOutput.total}`);
 		} else {
 			console.warn('⚠️  Task list did not return expected shape — may be empty which is OK');
+		}
+
+		// Verify Create Torrent output (destructive; only when a torrent fixture is provided)
+		if (process.env.SYNO_TORRENT_PATH) {
+			const torrentOutput = summary['Create Torrent']?.[0];
+			if (torrentOutput?.status === 'error') {
+				throw new Error(`Create Torrent failed: ${torrentOutput.error}`);
+			}
+			const tjson = torrentOutput?.json?.[0];
+			console.log('✅ Create Torrent ran:', JSON.stringify(tjson));
+			if (tjson && (tjson.task_id || tjson.list_id)) {
+				console.log('✅ Torrent task/list created');
+				// cleanup: delete created task via node Delete
+				const tid = Array.isArray(tjson.task_id) ? tjson.task_id[0] : tjson.task_id;
+				if (tid) {
+					// use V2 delete through the node's delete operation
+					const cleanupWorkflow = await api('POST', '/rest/workflows', {
+						name: `Synology DS Cleanup ${unique}`,
+						nodes: [
+							{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
+							{ name: 'Delete Task', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'task', operation: 'delete', taskId: tid }, credentials: c },
+						],
+						connections: { 'Manual Trigger': { main: [[{ node: 'Delete Task', type: 'main', index: 0 }]] } },
+						active: false, settings: { executionOrder: 'v1' }, staticData: null, pinData: { 'Manual Trigger': [{ json: {} }] }, tags: [],
+					});
+					const cleanupRun = await api('POST', `/rest/workflows/${cleanupWorkflow.id}/run`, { triggerToStartFrom: { name: 'Manual Trigger' } });
+					await getExecution(cleanupRun.executionId);
+					await api('POST', `/rest/workflows/${cleanupWorkflow.id}/archive`).catch(() => {});
+					await api('DELETE', `/rest/workflows/${cleanupWorkflow.id}`).catch(() => {});
+					console.log('🧹 Torrent task cleaned up');
+				}
+			}
+		} else {
+			console.log('⏭️  Skipping Create Torrent (set SYNO_TORRENT_PATH to test torrent upload)');
 		}
 
 		// Verify BT search output

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-08-06
+
+### Fixed
+- Node descriptions now use `inputs: ['main']` / `outputs: ['main']`
+  string literals instead of `NodeConnectionTypes.Main` — the
+  `NodeConnectionTypes` (plural) export does not exist in n8n-workflow
+  2.32.x (`NodeConnectionType` singular is the current name), so package
+  loading failed with "Class could not be found" when installed as a
+  community node.
+- `index.js` now re-exports all node/credential classes (n8n community
+  package loader entry point).
+
 ## [0.1.1] - 2026-08-06
 
 ### Added

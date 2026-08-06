@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-synology",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "n8n community nodes for Synology NAS applications",
   "keywords": [
     "n8n-community-node-package",
@@ -48,7 +48,8 @@
     "test:e2e:chat:outgoing": "node test/e2e-chat-outgoing.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "index.js"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,

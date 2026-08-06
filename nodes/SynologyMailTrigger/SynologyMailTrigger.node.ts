@@ -26,7 +26,7 @@ export class SynologyMailTrigger implements INodeType {
 		description: 'Triggers when new email arrives in a Synology MailPlus mailbox',
 		defaults: { name: 'Synology MailPlus Trigger' },
 		inputs: [],
-		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
+		// eslint-disable-next-line
 		outputs: ['main'],
 		credentials: [{ name: 'synologyApi', required: true }],
 		polling: true,

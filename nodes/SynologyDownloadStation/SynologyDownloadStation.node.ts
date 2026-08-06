@@ -54,9 +54,9 @@ export class SynologyDownloadStation implements INodeType {
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Manage Synology Download Station tasks: create, list, pause, resume, delete, and get statistics',
 		defaults: { name: 'Synology Download Station' },
-		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
+		// eslint-disable-next-line
 		inputs: ['main'],
-		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
+		// eslint-disable-next-line
 		outputs: ['main'],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,

@@ -60,9 +60,9 @@ export class SynologyChat implements INodeType {
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Work with Synology Chat: send messages via webhooks, manage bots and webhooks, list channels and posts',
 		defaults: { name: 'Synology Chat' },
-		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
+		// eslint-disable-next-line
 		inputs: ['main'],
-		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
+		// eslint-disable-next-line
 		outputs: ['main'],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,

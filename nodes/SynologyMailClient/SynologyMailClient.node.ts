@@ -98,7 +98,9 @@ export class SynologyMailClient implements INodeType {
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Work with Synology MailPlus email: list threads and messages, read mail, manage drafts, download attachments',
 		defaults: { name: 'Synology MailPlus' },
+		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
 		inputs: ['main'],
+		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
 		outputs: ['main'],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,

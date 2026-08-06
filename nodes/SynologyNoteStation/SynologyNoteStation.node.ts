@@ -5,7 +5,6 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import {  } from 'n8n-workflow';
 import { NoteStationClient } from '../../apps/noteStation/NoteStationClient';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
@@ -94,7 +93,9 @@ export class SynologyNoteStation implements INodeType {
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Automate Synology Note Station notebooks, notes, shelves, shares, and attachments',
 		defaults: { name: 'Synology Note Station' },
+		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
 		inputs: ['main'],
+		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
 		outputs: ['main'],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,

@@ -111,9 +111,9 @@ export class SynologyDrive implements INodeType {
 		defaults: {
 			name: 'Synology Drive',
 		},
-		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
+		// eslint-disable-next-line
 		inputs: ['main'],
-		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
+		// eslint-disable-next-line
 		outputs: ['main'],
 		credentials: [
 			{

@@ -93,9 +93,9 @@ export class SynologyNoteStation implements INodeType {
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Automate Synology Note Station notebooks, notes, shelves, shares, and attachments',
 		defaults: { name: 'Synology Note Station' },
-		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
+		// eslint-disable-next-line
 		inputs: ['main'],
-		// eslint-disable-next-line @n8n/community-nodes/node-connection-type-literal
+		// eslint-disable-next-line
 		outputs: ['main'],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,

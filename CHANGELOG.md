@@ -5,7 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-08-06
+
+### Added
+- Synology MailPlus `SynologyMailClient`: 14 extended operations (all
+  verified live via E2E against a DSM 7 NAS):
+  - Message: Mark Read / Unread, Star / Unstar, Move.
+  - Thread: Mark Read / Unread, Add / Remove Label, Move, Delete.
+  - Label: Create / Update / Delete — colors restricted to the official
+    palette (36 background + 13 text colors, uppercase hex without `#`).
+  - Mailbox: Create / Rename / Delete.
+  - Draft: Reply (`refer_to` + `draft_type=1`), Forward (`draft_type=2`),
+    Attachment upload (multipart), Scheduled send (`schedule_time`).
+  - Signature: List / Create / Delete.
+  - Filter rules, SMTP accounts, MailTemplate, MailMerge: List.
+  - Full-text search via `Thread.list` `keyword` parameter.
+- New E2E suite `test/e2e-mailclient-extended.js` covering every new
+  operation against a live NAS with full cleanup.
+
+### Fixed
+- Label color params now use the fixed MailPlus palette (arbitrary hex is
+  rejected by the API with a type error).
+- ID parameters accept numbers, comma-separated strings or arrays from
+  expressions (`toIdArray` helper).
+- Signature `is_default` is JSON-encoded as required by the API.
+- E2E harness waits for execution persistence before reading results.
+
 ## [0.0.9] - 2026-08-06
+
 
 ### Added
 - Download Station: V1→V2 URL create fallback (verified live on DSM 7).

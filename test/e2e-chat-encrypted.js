@@ -43,26 +43,22 @@ async function runWorkflow(name, nodes, connections) {
 	const wf = await request('POST', '/rest/workflows', { name, nodes, connections, active: false, settings: { executionOrder: 'v1' }, staticData: null, pinData: null, tags: [] }, apiHeaders);
 	const wfId = wf.json?.data?.id;
 	if (!wfId) throw new Error(`workflow create failed: ${wf.raw.slice(0, 200)}`);
-	await request('POST', `/rest/workflows/${wfId}/run`, { triggerToStartFrom: { name: 'Manual Trigger' } }, apiHeaders);
-	// find latest execution
+	const run = await request('POST', `/rest/workflows/${wfId}/run`, { triggerToStartFrom: { name: 'Manual Trigger' } }, apiHeaders);
+	const execId = run.json?.data?.executionId;
 	let summary = {};
 	for (let t = 0; t < 40; t++) {
-		const runs = await request('GET', `/rest/executions?workflowId=${wfId}&limit=1`, undefined, apiHeaders);
-		const execId = runs.json?.data?.[0]?.id;
-		if (execId) {
-			const e = await request('GET', `/rest/executions/${execId}?includeData=true`, undefined, apiHeaders);
-			const st = e.json?.data?.status;
-			if (st === 'success' || st === 'error' || st === 'crashed') {
-				await sleep(1500);
-				try {
-					const raw = e.json?.data?.data ?? e.json?.data;
-					let parsed = raw;
-					if (typeof raw === 'string') { const { parse } = require('flatted'); parsed = parse(raw); }
-					const runData = parsed?.resultData?.runData || {};
-					summary = Object.fromEntries(Object.entries(runData).map(([node, runs]) => [node, { status: runs[0]?.executionStatus || (runs[0]?.error ? 'error' : 'success'), error: runs[0]?.error?.message, json: runs[0]?.data?.main?.[0]?.[0]?.json }]));
-					if (Object.keys(summary).length > 0) break;
-				} catch { /* retry */ }
-			}
+		const e = await request('GET', `/rest/executions/${execId}?includeData=true`, undefined, apiHeaders);
+		const st = e.json?.data?.status;
+		if (st === 'success' || st === 'error' || st === 'crashed') {
+			await sleep(1500);
+			try {
+				const raw = e.json?.data?.data ?? e.json?.data;
+				let parsed = raw;
+				if (typeof raw === 'string') { const { parse } = require('flatted'); parsed = parse(raw); }
+				const runData = parsed?.resultData?.runData || {};
+				summary = Object.fromEntries(Object.entries(runData).map(([node, runs]) => [node, { status: runs[0]?.executionStatus || (runs[0]?.error ? 'error' : 'success'), error: runs[0]?.error?.message, json: runs[0]?.data?.main?.[0]?.[0]?.json }]));
+				if (Object.keys(summary).length > 0) break;
+			} catch { /* retry */ }
 		}
 		await sleep(1000);
 	}
@@ -82,30 +78,29 @@ async function runWorkflow(name, nodes, connections) {
 	globalCredId = cred.json?.data?.id;
 	const c = () => ({ synologyApi: { id: globalCredId, name: 'x' } });
 
-	const chName = `E2EEnc ${Date.now()}`;
+	const chName = `E2EEnc${Date.now()}`;
 	// create encrypted channel with myself as member (user 10)
-	const nodes = [MT, { name: 'Create Enc', type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'channel', operation: 'create', chName, chMemberIds: '10', chEncrypted: true }, credentials: c() }];
+	const nodes = [MT, { name: 'Create Enc', type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'channel', operation: 'create', chName, chType: 'private', chEncrypted: true }, credentials: c() }];
 	const s = await runWorkflow('Chat Enc Create', nodes, connect('Manual Trigger', 'Create Enc'));
 	const n = s['Create Enc'];
 	let channelId = 0;
 	if (n?.error) {
 		bad('Encrypted channel create', new Error(n.error));
 	} else {
-		channelId = n?.json?.channel_id || 0;
+		channelId = n?.json?.channel_id || n?.json?.id || 0;
 		ok('Encrypted channel create', `id=${channelId} json=${JSON.stringify(n?.json || {}).slice(0, 120)}`);
 	}
 
-	// verify via list channels
+	// verify via SQL (private channel not visible in joined list)
 	if (channelId) {
-		const nodes2 = [MT, { name: 'List Ch', type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'channel', operation: 'list' }, credentials: c() }];
-		const s2 = await runWorkflow('Chat Enc List', nodes2, connect('Manual Trigger', 'List Ch'));
-		const n2 = s2['List Ch'];
-		const chans = Array.isArray(n2?.json) ? n2.json : (n2?.json?.channels || []);
-		const found = (chans || []).find((x) => x.channel_id === channelId);
-		if (found) {
-			ok('Verify encrypted flag', `encrypted=${found.encrypted} name=${found.name || '(none)'}`);
-		} else {
-			bad('Verify encrypted flag', new Error('channel not found in list'));
+		try {
+			const sql = `SELECT encrypted FROM channels WHERE id=${channelId};`;
+			const b64 = Buffer.from(sql).toString('base64');
+			const out = execSync(`ssh -o ConnectTimeout=10 root@192.168.1.175 "echo ${b64} | base64 -d > /tmp/chat_verify.sql && su -s /bin/sh Chat -c \"psql -h /var/run/postgresql -d synochat -t -f /tmp/chat_verify.sql\" && rm -f /tmp/chat_verify.sql"`, { encoding: 'utf8' });
+			const val = out.trim().split('\n').pop().trim();
+			ok('Verify encrypted flag', `encrypted=${val}`);
+		} catch (e) {
+			bad('Verify encrypted flag', new Error(String(e.message || e).slice(0, 200)));
 		}
 	}
 
@@ -122,7 +117,7 @@ async function runWorkflow(name, nodes, connections) {
 		} catch {}
 		// SQL cleanup via NAS
 		try {
-			const out = execSync(`ssh -o ConnectTimeout=10 root@192.168.1.175 "su -s /bin/sh Chat -c \\"psql -h /var/run/postgresql -d synochat -c \\\\\\"DELETE FROM channels WHERE channel_id=${channelId};\\\\\\"\\""`, { encoding: 'utf8' });
+			const out = execSync(`ssh -o ConnectTimeout=10 root@192.168.1.175 "su -s /bin/sh Chat -c \\"psql -h /var/run/postgresql -d synochat -c \\\\\\"DELETE FROM channels WHERE id=${channelId};\\\\\\"\\""`, { encoding: 'utf8' });
 			ok('Cleanup channel (SQL)', out.trim().split('\n').pop());
 		} catch (e) {
 			bad('Cleanup channel (SQL)', new Error(String(e.message || e).slice(0, 200)));

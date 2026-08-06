@@ -266,12 +266,16 @@ export class SynologyChat implements INodeType {
 				displayOptions: { show: { resource: ['channel'], operation: ['create'] } },
 			},
 			{
-				displayName: 'Member IDs',
-				name: 'chMemberIds',
-				type: 'string',
-				default: '',
+				displayName: 'Type',
+				name: 'chType',
+				type: 'options',
+				options: [
+					{ name: 'Private', value: 'private' },
+					{ name: 'Public', value: 'public' },
+				],
+				default: 'private',
 				displayOptions: { show: { resource: ['channel'], operation: ['create'] } },
-				description: 'Comma-separated user IDs to add to the channel (optional)',
+				description: 'Channel type. Use Private for encrypted channels (Public fails with 422 if some users lack encryption keys)',
 			},
 			{
 				displayName: 'Encrypted Channel',
@@ -385,10 +389,9 @@ export class SynologyChat implements INodeType {
 				} else if (operation === 'get') {
 					data = await chat.getChannel(this.getNodeParameter('chChannelId', i) as number) as unknown as IDataObject;
 				} else if (operation === 'create') {
-					const memberIdsRaw = this.getNodeParameter('chMemberIds', i, '') as string;
 					data = await chat.createChannel(
 						this.getNodeParameter('chName', i) as string,
-						memberIdsRaw ? memberIdsRaw.split(',').map((s) => Number(s.trim())).filter((n) => !Number.isNaN(n)) : undefined,
+						this.getNodeParameter('chType', i, 'private') as 'public' | 'private',
 						this.getNodeParameter('chEncrypted', i, false) as boolean,
 					);
 				}

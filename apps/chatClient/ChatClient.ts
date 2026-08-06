@@ -283,10 +283,16 @@ export class ChatClient {
 		return data.channel as ChatChannel;
 	}
 
-	/** Create a named channel (session required). */
-	async createChannel(name: string, memberIds?: number[], encrypted?: boolean): Promise<IDataObject> {
-		const params: IDataObject = { name };
-		if (memberIds) params.member_ids = memberIds;
+	/**
+	 * Create a named channel (session required).
+	 * Note: only 'private' type works via API for encrypted channels —
+	 * 'public' fails with 422 'public cannot encrypt' because the server
+	 * tries to encrypt the channel key for every user, many of whom have
+	 * no E2E keypair. Members are NOT passed here (server rejects
+	 * member_ids with 119) — invite them separately afterwards.
+	 */
+	async createChannel(name: string, type: 'public' | 'private', encrypted?: boolean): Promise<IDataObject> {
+		const params: IDataObject = { name, type, purpose: '' };
 		if (encrypted) params.encrypted = true;
 		return await this.synology.request({
 			api: CHAT_CHANNEL_NAMED_API,

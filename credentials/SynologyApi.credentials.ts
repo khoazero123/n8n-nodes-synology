@@ -12,8 +12,8 @@ export class SynologyApi implements ICredentialType {
 	documentationUrl = 'https://kb.synology.com/en-global/DSM/help/DSM/AdminCenter/system_login_portal_advanced';
 
 	icon: Icon = {
-		light: 'file:../nodes/SynologyNoteStation/SynologyNoteStation.svg',
-		dark: 'file:../nodes/SynologyNoteStation/SynologyNoteStation-dark.svg',
+		light: 'file:../nodes/SynologyDrive/SynologyDrive.svg',
+		dark: 'file:../nodes/SynologyDrive/SynologyDrive-dark.svg',
 	};
 
 	properties: INodeProperties[] = [

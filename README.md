@@ -58,7 +58,7 @@ Drive uses the shared **Synology API** credential. Its application REST API uses
 - Get Download Station server configuration (read-only)
 - Search BT search modules for a keyword (read-only)
 
-The node currently uses the documented Download Station V1 APIs. Torrent-file upload and undocumented V2 create fallback remain pending contract verification.
+The node uses the documented Download Station V1 APIs for baseline operations. Torrent-file upload is implemented through the Download Station 4.1.2 V2 frontend contract and requires a valid NAS destination; V2 URL fallback remains intentionally unimplemented.
 
 ## Credentials
 

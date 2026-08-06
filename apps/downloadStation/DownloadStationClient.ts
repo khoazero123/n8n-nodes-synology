@@ -56,6 +56,7 @@ export class DownloadStationClient {
 				method: 'create',
 				session: DOWNLOAD_STATION_SESSION,
 				multipartPath: 'entry.cgi',
+				authMode: 'cookie',
 				params: {
 					// The frontend hidden field is Ext.encode('file'), so the
 					// multipart scalar includes JSON string quotes.
@@ -63,10 +64,11 @@ export class DownloadStationClient {
 					file: ['torrent'],
 					destination: JSON.stringify(input.destination ?? ''),
 					size: input.data.length,
+					mtime: Date.now(),
 					create_list: input.createList ?? false,
 				},
 			},
-			{ fieldName: 'torrent', filename: input.filename, data: input.data, contentType: input.contentType ?? 'application/octet-stream' },
+			{ fieldName: 'torrent', filename: input.filename, data: input.data, contentType: input.contentType ?? 'application/x-bittorrent' },
 			{},
 		);
 	}

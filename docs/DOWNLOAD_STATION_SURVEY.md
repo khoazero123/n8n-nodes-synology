@@ -140,7 +140,7 @@ size_downloaded, size_uploaded, speed_download, speed_upload
 
 **Frontend evidence (NAS Download Station 4.1.2-5012, read-only inspection):** `ui/download.js` defines `QueueAddFile.FILEFILEDNAME="torrent"`, `type="file"`, hidden `file=["torrent"]`, and `QueueAddFileUploader` posts `api=SYNO.DownloadStation2.Task`, `version=2`, `method=create`. It sends `destination` as JSON and `create_list` as a boolean. The upload completion handler reads `response.data.list_id`. This identifies the multipart contract, but does not yet prove the full server response/task lifecycle.
 
-**Controlled live probe (2026-08-05):** initial non-browser-shaped requests returned `success=false, error.code=119` before creating a task; task list remained empty (`before_count=0`, `created_ids=[]`). Further frontend-contract analysis found two important details: the upload URL is `entry.cgi/SYNO.DownloadStation2.Task` (API in the path, not only `entry.cgi`), and the HTML5 uploader always adds multipart field `size=<file.size>`. A browser-shaped probe using those details returned `error.code=101` (generic task error) and still created no task. The multipart body is now closer to the frontend, but live compatibility remains unproven; do not claim upload support until a successful task lifecycle is observed.
+**Controlled live probe (2026-08-05):** initial non-browser-shaped requests returned `success=false, error.code=119` before creating a task; task list remained empty (`before_count=0`, `created_ids=[]`). Further frontend-contract analysis found two important details: the upload URL is `entry.cgi/SYNO.DownloadStation2.Task` (API in the path, not only `entry.cgi`), and the HTML5 uploader always adds multipart field `size=<file.size>`. A browser-shaped probe using those details returned `error.code=101` (generic task error) and still created no task. A later Playwright UI capture showed the exact frontend multipart shape: the URL is `/webapi/entry.cgi/SYNO.DownloadStation2.Task`, but the form body still includes `api=SYNO.DownloadStation2.Task`, `method=create`, and `version=2`; it also includes `mtime=<Date.now()>`. The UI-selected default destination was `home/Drive/Download`, which does not exist on this NAS and produced `error.code=403` (`SYNODL_ERR_TASK_DEST_NOT_EXISTS`). Replaying with an existing `home/Drive` destination through `_sid` still returned `code=119` and created no task. A controlled browser-context replay then established the missing authentication detail: V2 multipart upload succeeds with the DSM session cookie (`Cookie: id=<sid>`) and `X-SYNO-TOKEN`, while `_sid`-only multipart returns `119`. With `create_list=false`, the successful response was `data.task_id=["dbid_1016"]`; the task was listed and deleted in the `finally` cleanup path. Live upload compatibility is now verified for the tested NAS/session/destination, but the implementation must use cookie/token auth for this operation.
 
 ⚠️ **V2 caveat from Python lib docs:** "the V2 API is reserved by Synology for internal use and may return 'Preserve for other purpose' on most DSM installations." Cần verify trên NAS thực tế.
 
@@ -156,7 +156,7 @@ size_downloaded, size_uploaded, speed_download, speed_upload
 | 1 | **V1 `create` có hoạt động trên DSM7 không?** | 🔴 CRITICAL | curl POST `SYNO.DownloadStation.Task` v1 method=create với URL đơn giản. Nếu fail → chỉ dùng V2. |
 | 2 | **V2 API có trả về "Preserve for other purpose" không?** | 🔴 CRITICAL | Query `SYNO.API.Info` xem `SYNO.DownloadStation2.Task` có trong response không. Nếu không → fallback V1. |
 | 3 | **Đường dẫn chính xác cho V2** | 🟡 HIGH | Theo autobrr: `DownloadStation/entry.cgi`. Cần xác nhận trên NAS. |
-| 4 | **Multipart torrent upload V2** | 🟡 HIGH | **Frontend contract đã xác minh:** `SYNO.DownloadStation2.Task` v2, `create`, `type=file`, multipart field `torrent`, metadata `file=["torrent"]`, `destination` JSON-encoded, `create_list` boolean. Còn cần controlled E2E để xác minh server response và task/list lifecycle. |
+| 4 | **Multipart torrent upload V2** | ✅ VERIFIED | Frontend contract and controlled NAS E2E verified. V2 multipart requires DSM session cookie + `X-SYNO-TOKEN`; with `create_list=false`, response returns `data.task_id`, then the task can be listed/deleted.
 | 5 | **`create_list` param trong V2** | 🟢 MEDIUM | Frontend gửi boolean `create_list`; khi bật, callback đọc `data.list_id` để lấy file-info/list. Cần E2E xác minh list endpoint và cleanup. |
 | 6 | **V1 `file` param (torrent upload)** | 🟢 MEDIUM | Official doc có nhắc `file`, nhưng frontend DSM 7.2/Download Station 4.1.2 dùng V2 `type=file`; chưa nên implement V1 multipart. |
 | 7 | **`SYNO.DownloadStation.Task.List` endpoint** | 🟢 MEDIUM | Python lib có reference tới `SYNO.DownloadStation2.Task.List` để get file list sau khi create. Tồn tại thực tế không? |
@@ -168,7 +168,7 @@ size_downloaded, size_uploaded, speed_download, speed_upload
 | Operation | V1 Method | V2 Method | Input params |
 |-----------|-----------|-----------|--------------|
 | `createUrl` | `create` (uri=) | `create` (type=url) | url, destination? |
-| `createTorrent` | `create` (file=) | `create` (type=file), multipart field `torrent` | **Implemented theo frontend contract; real NAS E2E destructive còn pending approval** |
+| `createTorrent` | `create` (file=) | `create` (type=file), multipart field `torrent` | **Implemented; controlled real-NAS E2E verified with cookie/token auth and cleanup** |
 | `getAll` | `list` | `list` | offset?, limit?, additional? |
 | `get` | `getinfo` | `getinfo` | taskId, additional? |
 | `pause` | `pause` | `pause` | taskId |
@@ -296,7 +296,7 @@ nodes/SynologyDownloadStation/
 
 ### Implementation Complete (2026-08-05)
 
-Phase 1 intentionally covers the safe, documented V1 operations plus verified read-only Info/BTSearch. URL creation is implemented with V1 only; V2 URL fallback and torrent upload remain pending controlled E2E despite the frontend multipart contract now being identified.
+Phase 1 covers the safe, documented V1 operations plus verified read-only Info/BTSearch. URL creation remains implemented with V1 only; V2 URL fallback is still pending, while torrent upload is now verified against the tested NAS through the frontend-compatible V2 multipart contract and cookie/token authentication.
 
 - `apps/downloadStation/constants.ts` — API strings, session name, task status map, additional fields
 - `apps/downloadStation/types.ts` — TypeScript interfaces for tasks, statistics, inputs

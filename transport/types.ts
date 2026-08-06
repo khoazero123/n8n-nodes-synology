@@ -25,4 +25,6 @@ export interface SynologyRequestParams {
 	params?: IDataObject;
 	/** Optional path prefix for multipart endpoints, e.g. entry.cgi/<api>. */
 	multipartPath?: string;
+	/** Use DSM web session cookie/token auth for APIs that reject _sid-only auth. */
+	authMode?: 'sid' | 'cookie';
 }

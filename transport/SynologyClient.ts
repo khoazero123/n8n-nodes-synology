@@ -12,12 +12,16 @@ export class SynologyClient {
 	) {}
 
 	async login(session: string): Promise<string> {
+		return (await this.loginSession(session)).sid;
+	}
+
+	private async loginSession(session: string): Promise<{ sid: string; synotoken?: string }> {
 		const existingSid = this.sidBySession.get(session);
 		if (existingSid) {
-			return existingSid;
+			return { sid: existingSid };
 		}
 
-		const response = await this.rawRequest<{ sid: string }>({
+		const response = await this.rawRequest<{ sid: string; synotoken?: string }>({
 			api: 'SYNO.API.Auth',
 			version: 7,
 			method: 'login',
@@ -26,6 +30,7 @@ export class SynologyClient {
 				passwd: this.credentials.password,
 				session,
 				format: 'sid',
+				enable_syno_token: 'yes',
 			},
 		});
 
@@ -37,7 +42,7 @@ export class SynologyClient {
 		}
 
 		this.sidBySession.set(session, response.data.sid);
-		return response.data.sid;
+		return { sid: response.data.sid, synotoken: response.data.synotoken };
 	}
 
 	async logout(session: string): Promise<void> {
@@ -74,7 +79,8 @@ export class SynologyClient {
 
 	async requestMultipart(request: SynologyRequestParams, file: { fieldName: string; filename: string; data: Buffer; contentType?: string }, extraFields: Record<string, string>): Promise<IDataObject> {
 		const session = request.session;
-		const sid = session ? await this.login(session) : undefined;
+		const auth = session ? await this.loginSession(session) : undefined;
+		const sid = auth?.sid;
 		const boundary = `----n8nSynology${Date.now().toString(16)}`;
 		const crlf = '\r\n';
 		const chunks: Buffer[] = [];
@@ -85,16 +91,23 @@ export class SynologyClient {
 		// path form through `multipartPath`.
 		const { multipartPath, ...requestParams } = request as SynologyRequestParams & { multipartPath?: string };
 		const fields: Record<string, string> = {
-			...(multipartPath ? {} : { api: request.api, version: String(request.version), method: request.method }),
+			api: request.api,
+			version: String(request.version),
+			method: request.method,
 			...(requestParams.params ? Object.fromEntries(Object.entries(requestParams.params).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v)])) : {}),
 			...extraFields,
 		};
-		if (sid) fields._sid = sid;
+		if (sid && request.authMode !== 'cookie') fields._sid = sid;
 		for (const [key, value] of Object.entries(fields)) chunks.push(Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="${key}"${crlf}${crlf}${value}${crlf}`));
 		chunks.push(Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="${file.fieldName}"; filename="${file.filename.replace(/"/g, '')}"${crlf}Content-Type: ${file.contentType ?? 'application/octet-stream'}${crlf}${crlf}`));
 		chunks.push(file.data, Buffer.from(crlf), Buffer.from(`--${boundary}--${crlf}`));
 		const url = `${this.credentials.baseUrl.replace(/\/$/, '')}/webapi/${multipartPath ? `${multipartPath.replace(/^\//, '')}/${request.api}` : 'entry.cgi'}`;
-		const response = await this.executeFunctions.helpers.httpRequest({ method: 'POST', url, headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: Buffer.concat(chunks), json: true, skipSslCertificateValidation: this.credentials.allowUnauthorizedCerts ?? false }) as SynologyApiResponse<IDataObject>;
+		const headers: Record<string, string> = { 'Content-Type': `multipart/form-data; boundary=${boundary}` };
+		if (request.authMode === 'cookie' && sid) {
+			headers.Cookie = `id=${sid}`;
+			if (auth?.synotoken) headers['X-SYNO-TOKEN'] = auth.synotoken;
+		}
+		const response = await this.executeFunctions.helpers.httpRequest({ method: 'POST', url, headers, body: Buffer.concat(chunks), json: true, skipSslCertificateValidation: this.credentials.allowUnauthorizedCerts ?? false }) as SynologyApiResponse<IDataObject>;
 		if (!response.success) {
 			const detail = response.error ? `: ${JSON.stringify(response.error)}` : '';
 			throw new NodeApiError(this.executeFunctions.getNode(), response as unknown as JsonObject, { message: `Synology API call failed: ${request.api}.${request.method}${detail}` });

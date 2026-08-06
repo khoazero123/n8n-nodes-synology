@@ -94,7 +94,7 @@ The Download Station node is implemented and passes build, lint, and package dry
   - `DownloadStation/statistic.cgi` for statistics
   - `DownloadStation/btsearch.cgi` for BT search
 - Shares the `Synology API` credential and DSM session (`session=DownloadStation`)
-- Binary torrent create is intentionally excluded from phase 1 (requires multipart contract verification)
+- Binary torrent create is implemented through the verified Download Station 4.1.2 V2 multipart contract; production use requires a valid destination folder on the NAS
 
 ### Verified NAS API discovery
 

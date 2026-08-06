@@ -181,9 +181,16 @@ export class NoteStationClient {
 
 	async updateNote(input: UpdateNoteInput): Promise<NoteStationData> {
 		const current = input.ver ? undefined : await this.getNote(input.objectId);
+		const ver = input.ver ?? current?.ver;
 		const params: IDataObject = {
 			object_id: input.objectId,
-			ver: input.ver ?? current?.ver,
+			// ver MUST be JSON-encoded (quoted JSON string) for Note.set.
+			// The DSM frontend always sends it as Ext.encode()'d JSON. Raw ver
+			// works when the caller owns the note, but fails with error 114
+			// (param type check `!(req->GetParam(ver)).isString()` at
+			// main.cpp:2826) when the caller is NOT the owner (shared note
+			// with rw permission).
+			ver: ver !== undefined ? JSON.stringify(ver) : undefined,
 			commit_msg: input.commitMessage ?? { device: 'n8n', listable: false },
 		};
 		if (input.title !== undefined) params.title = input.title;
@@ -341,7 +348,7 @@ export class NoteStationClient {
 				session: NOTE_STATION_SESSION,
 				params: {
 					object_id: input.objectId,
-					ver: input.version,
+					ver: input.version ? JSON.stringify(input.version) : undefined,
 					commit_msg: { device: 'n8n', listable: false },
 					attachment: [{ action: 'create', format: 'raw', name: multipartFieldName }],
 				},
@@ -352,7 +359,7 @@ export class NoteStationClient {
 	}
 
 	async deleteAttachment(input: AttachmentInput): Promise<NoteStationData> {
-		return await this.synology.request({ api: NOTE_API, version: NOTE_API_VERSION, method: 'set', session: NOTE_STATION_SESSION, params: { object_id: input.objectId, ver: input.version, attachment: [{ action: 'delete', file_id: input.fileId }] } });
+		return await this.synology.request({ api: NOTE_API, version: NOTE_API_VERSION, method: 'set', session: NOTE_STATION_SESSION, params: { object_id: input.objectId, ver: input.version ? JSON.stringify(input.version) : undefined, attachment: [{ action: 'delete', file_id: input.fileId }] } });
 	}
 
 	async getAttachment(input: AttachmentInput): Promise<IN8nHttpFullResponse> {

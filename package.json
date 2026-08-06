@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-synology",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "n8n community nodes for Synology NAS applications",
   "keywords": [
     "n8n-community-node-package",
@@ -25,7 +25,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "npx rimraf dist && tsc && gulp build:icons",
+    "build": "npx rimraf dist && tsc && gulp build:icons && node scripts/bundle.mjs",
     "dev": "tsc --watch",
     "format": "prettier nodes credentials transport apps --write",
     "lint": "eslint nodes/**/*.ts credentials/**/*.ts apps/**/*.ts transport/**/*.ts package.json",
@@ -68,13 +68,13 @@
   "devDependencies": {
     "@types/node": "^24.2.1",
     "@typescript-eslint/parser": "~8.32.0",
+    "esbuild": "^0.28.1",
     "eslint": "^8.57.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.3",
     "gulp": "^5.0.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2"
   },
-  "dependencies": {},
   "peerDependencies": {
     "n8n-workflow": "*"
   }

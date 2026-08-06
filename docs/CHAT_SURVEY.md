@@ -73,3 +73,26 @@ after test.
 - Test bots/webhooks deleted via `Bot.delete`.
 - Orphan posts (deleted bot) can't be deleted via API → delete via SQL:
   `su -s /bin/sh Chat -c "psql -h /var/run/postgresql -d synochat -c 'DELETE FROM posts WHERE id IN (...)'"`
+
+## Encrypted channels (2026-08-06, verified live)
+
+- `Channel.Named.create` accepts `encrypted: true` → creates an E2E
+  encrypted channel.
+- **Requirement:** the creating user MUST have an E2E keypair first.
+  - No keypair → error **408 "keypair not exist"** (channel create fails
+    for ALL channels, not just encrypted ones).
+  - Keypair is generated in the Chat web UI (Profile → Settings →
+    Encryption): browser creates a curve25519 pair via libsodium
+    `crypto_box_keypair`, stores `private_key_enc = base64(nonce +
+    secretbox(private_key, nonce, blake2b(password)))` via
+    `SYNO.Chat.User.update_key`.
+  - Setting a synthetic/incorrect keypair via `update_key` makes channel
+    create fail with **422 "public cannot encrypt"** — the server decrypts
+    `private_key_enc` with the user's password and cannot use the key.
+- Users with keypairs on this NAS (as of 2026-08-06): user 6, user 16.
+  User 10 (khoa) has never enabled encryption.
+- **Conclusion for the node:** the `Encrypted Channel` checkbox is
+  correct; the user just needs to enable Encryption once in the Chat UI.
+  The node description documents this requirement.
+- Reset keypair to empty: `SYNO.Chat.User.update_key {conn_id, public_key:
+  "", private_key_enc: ""}` (returns success, restores original state).

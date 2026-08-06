@@ -15,6 +15,8 @@ const taskOperations = [
 	{ name: 'Create Torrent', value: 'createTorrent', action: 'Create download task from a binary torrent file' },
 	{ name: 'Create URL', value: 'createUrl', action: 'Create download task from URL or magnet link' },
 	{ name: 'Delete', value: 'delete', action: 'Delete a download task' },
+	{ name: 'Download Source', value: 'downloadSource', action: 'Download the original torrent file of a BT task' },
+	{ name: 'Edit', value: 'edit', action: 'Edit a download task (destination or priority)' },
 	{ name: 'Get', value: 'get', action: 'Get a download task' },
 	{ name: 'Get Many', value: 'getMany', action: 'Get many download tasks' },
 	{ name: 'Pause', value: 'pause', action: 'Pause a download task' },
@@ -32,6 +34,14 @@ const infoOperations = [
 
 const btSearchOperations = [
 	{ name: 'Search', value: 'search', action: 'Search BT search modules for a keyword' },
+];
+
+const taskListOperations = [
+	{ name: 'Get Files', value: 'getFiles', action: 'Get the file list of a pending task list' },
+	{ name: 'Confirm Download', value: 'confirmDownload', action: 'Confirm a task list and create the real download tasks' },
+	{ name: 'Get Download Status', value: 'getDownloadStatus', action: 'Check whether a task list download finished' },
+	{ name: 'Stop Download', value: 'stopDownload', action: 'Stop polling a task list download' },
+	{ name: 'Delete', value: 'delete', action: 'Delete a pending task list' },
 ];
 
 export class SynologyDownloadStation implements INodeType {
@@ -59,6 +69,7 @@ export class SynologyDownloadStation implements INodeType {
 					{ name: 'Info', value: 'info' },
 					{ name: 'Statistic', value: 'statistics' },
 					{ name: 'Task', value: 'task' },
+					{ name: 'Task List', value: 'taskList' },
 				],
 				default: 'task',
 			},
@@ -97,6 +108,15 @@ export class SynologyDownloadStation implements INodeType {
 				displayOptions: { show: { resource: ['btSearch'] } },
 				options: btSearchOperations,
 				default: 'search',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['taskList'] } },
+				options: taskListOperations,
+				default: 'getFiles',
 			},
 			// --- BT Search keyword ---
 			{
@@ -153,10 +173,31 @@ export class SynologyDownloadStation implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['task'],
-						operation: ['get', 'pause', 'resume', 'delete'],
+						operation: ['get', 'pause', 'resume', 'delete', 'edit', 'downloadSource'],
 					},
 				},
 				description: 'Download task ID (e.g. dbid_123). Comma-separated for batch pause/resume/delete.',
+			},
+			{
+				displayName: 'New Destination Folder',
+				name: 'editDestination',
+				type: 'string',
+				default: '',
+				displayOptions: { show: { resource: ['task'], operation: ['edit'] } },
+				description: 'New destination folder path on the NAS',
+			},
+			{
+				displayName: 'Priority',
+				name: 'priority',
+				type: 'options',
+				options: [
+					{ name: 'Low', value: 'low' },
+					{ name: 'Normal', value: 'normal' },
+					{ name: 'High', value: 'high' },
+				],
+				default: 'normal',
+				displayOptions: { show: { resource: ['task'], operation: ['edit'] } },
+				description: 'New task priority',
 			},
 			// --- Create Torrent ---
 			{
@@ -183,6 +224,59 @@ export class SynologyDownloadStation implements INodeType {
 				default: false,
 				displayOptions: { show: { resource: ['task'], operation: ['createTorrent'] } },
 				description: 'Whether Download Station should create a file list for the uploaded task',
+			},
+			// --- Task List ---
+			{
+				displayName: 'List ID',
+				name: 'listId',
+				type: 'string',
+				required: true,
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['taskList'],
+						operation: ['getFiles', 'confirmDownload', 'delete'],
+					},
+				},
+				description: 'Task list ID (e.g. btdl_xxx) returned by Create Torrent with Create File List enabled',
+			},
+			{
+				displayName: 'Polling Task ID',
+				name: 'pollingTaskId',
+				type: 'string',
+				required: true,
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['taskList'],
+						operation: ['getDownloadStatus', 'stopDownload'],
+					},
+				},
+				description: 'Polling task ID returned by Confirm Download',
+			},
+			{
+				displayName: 'Destination Folder',
+				name: 'listDestination',
+				type: 'string',
+				default: '',
+				displayOptions: { show: { resource: ['taskList'], operation: ['confirmDownload'] } },
+				description: 'Optional destination folder path on the NAS',
+			},
+			{
+				displayName: 'Create Subfolder',
+				name: 'createSubfolder',
+				type: 'boolean',
+				default: true,
+				displayOptions: { show: { resource: ['taskList'], operation: ['confirmDownload'] } },
+				description: 'Whether to create a subfolder for the downloaded content',
+			},
+			{
+				displayName: 'Selected File Indices',
+				name: 'selectedFiles',
+				type: 'string',
+				default: '',
+				displayOptions: { show: { resource: ['taskList'], operation: ['confirmDownload'] } },
+				description: 'Comma-separated file indices to download (e.g. 0,2). Empty downloads all files.',
 			},
 			// --- Create URL ---
 			{
@@ -325,6 +419,19 @@ export class SynologyDownloadStation implements INodeType {
 						username: (this.getNodeParameter('downloadUsername', i, '') as string) || undefined,
 						password: (this.getNodeParameter('downloadPassword', i, '') as string) || undefined,
 					});
+				} else if (operation === 'downloadSource') {
+					const response = await ds.getTaskSource({ taskId: this.getNodeParameter('taskId', i) as string });
+					const buffer = Buffer.isBuffer(response.body) ? response.body : Buffer.from((response.body as ArrayBuffer | undefined) ?? new ArrayBuffer(0));
+					const contentDisposition = response.headers?.['content-disposition'] as string | undefined;
+					const fileName = contentDisposition?.match(/filename="?([^";]+)/i)?.[1] ?? `task-${this.getNodeParameter('taskId', i)}.torrent`;
+					returnData.push({
+						json: { taskId: this.getNodeParameter('taskId', i) as string, fileName, size: buffer.length },
+						binary: {
+							data: await this.helpers.prepareBinaryData(buffer, fileName, 'application/x-bittorrent'),
+						},
+						pairedItem: { item: i },
+					});
+					continue;
 				} else if (operation === 'getMany') {
 					const additional = this.getNodeParameter('additional', i, []) as string[];
 					data = await ds.listTasks({
@@ -349,6 +456,14 @@ export class SynologyDownloadStation implements INodeType {
 							this.getNodeParameter('forceComplete', i, false) as boolean,
 						),
 					};
+				} else if (operation === 'edit') {
+					data = {
+						task: await ds.editTask({
+							taskId: this.getNodeParameter('taskId', i) as string,
+							destination: (this.getNodeParameter('editDestination', i, '') as string) || undefined,
+							priority: this.getNodeParameter('priority', i, 'normal') as 'low' | 'normal' | 'high',
+						}),
+					};
 				}
 			} else if (resource === 'statistics') {
 				if (operation === 'get') {
@@ -366,8 +481,31 @@ export class SynologyDownloadStation implements INodeType {
 						keyword: this.getNodeParameter('keyword', i) as string,
 						module: (this.getNodeParameter('module', i, '') as string) || undefined,
 						limit: this.getNodeParameter('limit', i, 50) as number,
-					offset: this.getNodeParameter('offset', i, 0) as number,
+						offset: this.getNodeParameter('offset', i, 0) as number,
 					});
+				}
+			} else if (resource === 'taskList') {
+				if (operation === 'getFiles') {
+					data = await ds.getTaskList({ listId: this.getNodeParameter('listId', i) as string });
+				} else if (operation === 'confirmDownload') {
+					const selectedRaw = this.getNodeParameter('selectedFiles', i, '') as string;
+					const selected = selectedRaw
+						.split(',')
+						.map((s) => s.trim())
+						.filter((s) => s.length > 0)
+						.map((s) => Number(s));
+					data = await ds.downloadTaskList({
+						listId: this.getNodeParameter('listId', i) as string,
+						destination: (this.getNodeParameter('listDestination', i, '') as string) || undefined,
+						createSubfolder: this.getNodeParameter('createSubfolder', i, true) as boolean,
+						selected: selected.length > 0 ? selected : undefined,
+					});
+				} else if (operation === 'getDownloadStatus') {
+					data = await ds.getTaskListDownloadStatus(this.getNodeParameter('pollingTaskId', i) as string);
+				} else if (operation === 'stopDownload') {
+					data = await ds.stopTaskListDownload(this.getNodeParameter('pollingTaskId', i) as string);
+				} else if (operation === 'delete') {
+					data = await ds.deleteTaskList({ listId: this.getNodeParameter('listId', i) as string });
 				}
 			}
 

@@ -136,6 +136,7 @@ async function main() {
 			{ name: 'BT Search', type, typeVersion: 1, position: [1200, 0], parameters: { resource: 'btSearch', operation: 'search', keyword: 'ubuntu', limit: 5 }, credentials: c },
 			{ name: 'Set Binary', type: 'n8n-nodes-base.set', typeVersion: 3.4, position: [1440, 0], parameters: { assignments: { assignments: [{ id: '1', name: 'data', value: '={{ $json }}', type: 'string' }] } } },
 			{ name: 'Create Torrent', type, typeVersion: 1, position: [1680, 0], parameters: { resource: 'task', operation: 'createTorrent', binaryPropertyName: 'data', createList: false }, credentials: c },
+			{ name: 'Download Source', type, typeVersion: 1, position: [1920, 0], parameters: { resource: 'task', operation: 'downloadSource', taskId: '={{ $json.task_id[0] }}' }, credentials: c },
 		];
 		const connections = {};
 		for (let i = 0; i < nodes.length - 1; i++) connections[nodes[i].name] = { main: [[{ node: nodes[i + 1].name, type: 'main', index: 0 }]] };
@@ -226,9 +227,29 @@ async function main() {
 					console.log('🧹 Torrent task cleaned up');
 				}
 			}
+			// Verify Download Source (binary torrent re-download)
+			const sourceOut = summary['Download Source']?.[0];
+			if (sourceOut?.status === 'error') throw new Error(`Download Source failed: ${sourceOut.error}`);
+			const srcJson = sourceOut?.json?.[0];
+			console.log('✅ Download Source ran:', JSON.stringify(srcJson));
+			if (srcJson && typeof srcJson.size === 'number' && srcJson.size > 0) {
+				console.log(`✅ Download Source returned ${srcJson.size} bytes`);
+			} else {
+				console.warn('⚠️  Download Source output missing size');
+			}
 		} else {
 			console.log('⏭️  Skipping Create Torrent (set SYNO_TORRENT_PATH to test torrent upload)');
 		}
+
+		// Verify Task List flow (create_list=true → getFiles → confirmDownload → status)
+		if (process.env.SYNO_TORRENT_PATH) {
+			const listFlow = await testTaskListFlow(api, getExecution, type, c, unique, process.env.SYNO_TORRENT_PATH);
+			if (listFlow) console.log('✅ Task List flow verified');
+		}
+
+		// Verify Edit operation (create URL task → edit destination/priority → delete)
+		const editFlow = await testEditOperation(api, getExecution, type, c, unique);
+		if (editFlow) console.log('✅ Edit operation verified');
 
 		// Verify BT search output
 		const searchOutput = summary['BT Search']?.[0]?.json?.[0];
@@ -248,6 +269,109 @@ async function main() {
 		if (workflow?.id) await request('DELETE', `/rest/workflows/${workflow.id}`);
 		if (credential?.id) await request('DELETE', `/rest/credentials/${credential.id}`);
 	}
+}
+
+/** Run a workflow and return the parsed execution summary. */
+async function runWorkflow(api, getExecution, type, c, unique, nodes, connections, pinData) {
+	const wf = await api('POST', '/rest/workflows', {
+		name: `Synology DS E2E ${unique}`, nodes, connections, active: false, settings: { executionOrder: 'v1' }, staticData: null, pinData, tags: [],
+	});
+	const run = await api('POST', `/rest/workflows/${wf.id}/run`, { triggerToStartFrom: { name: 'Manual Trigger' } });
+	if (!run.executionId) throw new Error(`Manual run did not return executionId: ${JSON.stringify(run)}`);
+	const execution = await getExecution(run.executionId);
+	const data = parseExecutionData(execution);
+	const summary = Object.fromEntries(Object.entries(data.resultData.runData).map(([node, runs]) => [node, runs.map((item) => ({ status: item.executionStatus || (item.error ? 'error' : 'success'), error: item.error?.message, json: item.data?.main?.[0]?.map((entry) => entry.json), }))]));
+	return { wf, execution, summary };
+}
+
+/** Create torrent with create_list=true, getFiles, confirmDownload, status, cleanup. */
+async function testTaskListFlow(api, getExecution, type, c, unique, torrentPath) {
+	const fs = require('fs');
+	const b64 = fs.readFileSync(torrentPath).toString('base64');
+	const nodes = [
+		{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
+		{ name: 'Set Binary', type: 'n8n-nodes-base.set', typeVersion: 3.4, position: [240, 0], parameters: { assignments: { assignments: [{ id: '1', name: 'data', value: '={{ $json }}', type: 'string' }] } } },
+		{ name: 'Create Torrent List', type, typeVersion: 1, position: [480, 0], parameters: { resource: 'task', operation: 'createTorrent', binaryPropertyName: 'data', createList: true }, credentials: c },
+		{ name: 'Get Files', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'taskList', operation: 'getFiles', listId: '={{ $json.list_id[0] }}' }, credentials: c },
+		{ name: 'Confirm Download', type, typeVersion: 1, position: [960, 0], parameters: { resource: 'taskList', operation: 'confirmDownload', listId: '={{ $json.list_id[0] }}', listDestination: 'home/Drive/Download', createSubfolder: false }, credentials: c },
+		{ name: 'Get Status', type, typeVersion: 1, position: [1200, 0], parameters: { resource: 'taskList', operation: 'getDownloadStatus', pollingTaskId: '={{ $json.task_id }}' }, credentials: c },
+	];
+	// Create Torrent List -> Get Files (parallel) + Confirm Download (uses $json.list_id from Create Torrent List).
+	// Get Files output has no list_id, so Confirm Download must NOT follow Get Files.
+	const connections = {
+		'Manual Trigger': { main: [[{ node: 'Set Binary', type: 'main', index: 0 }]] },
+		'Set Binary': { main: [[{ node: 'Create Torrent List', type: 'main', index: 0 }]] },
+		'Create Torrent List': { main: [[{ node: 'Get Files', type: 'main', index: 0 }, { node: 'Confirm Download', type: 'main', index: 0 }]] },
+		'Confirm Download': { main: [[{ node: 'Get Status', type: 'main', index: 0 }]] },
+	};
+	const pinData = {
+		'Manual Trigger': [{ json: {} }],
+		'Set Binary': [{ json: {}, binary: { data: { data: b64, mimeType: 'application/x-bittorrent', fileName: 'e2e-list.torrent' } } }],
+	};
+	const { wf, summary } = await runWorkflow(api, getExecution, type, c, `${unique}-list`, nodes, connections, pinData);
+	const createOut = summary['Create Torrent List']?.[0];
+	if (createOut?.status === 'error') throw new Error(`Task List create failed: ${createOut.error}`);
+	const listId = createOut?.json?.[0]?.list_id?.[0];
+	if (!listId) { console.warn('⚠️  Task List flow: no list_id returned'); await api('DELETE', `/rest/workflows/${wf.id}`).catch(() => {}); return false; }
+	console.log('✅ Task List created:', listId);
+	const filesOut = summary['Get Files']?.[0];
+	if (filesOut?.status === 'error') throw new Error(`Get Files failed: ${filesOut.error}`);
+	console.log('✅ Task List files:', JSON.stringify(filesOut?.json?.[0]?.files ?? []));
+	const confirmOut = summary['Confirm Download']?.[0];
+	if (confirmOut?.status === 'error') throw new Error(`Confirm Download failed: ${confirmOut.error}`);
+	const pollingId = confirmOut?.json?.[0]?.task_id;
+	console.log('✅ Confirm Download polling id:', pollingId);
+	const statusOut = summary['Get Status']?.[0];
+	if (statusOut?.status === 'error') throw new Error(`Get Status failed: ${statusOut.error}`);
+	const realTaskId = statusOut?.json?.[0]?.data?.task_id?.[0];
+	console.log('✅ Task List download status → task:', realTaskId);
+	// cleanup: delete real task + list via node operations
+	if (realTaskId) {
+		const delNodes = [
+			{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
+			{ name: 'Delete Task', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'task', operation: 'delete', taskId: realTaskId }, credentials: c },
+		];
+		const delWf = await api('POST', '/rest/workflows', { name: `DS Cleanup ${unique}`, nodes: delNodes, connections: { 'Manual Trigger': { main: [[{ node: 'Delete Task', type: 'main', index: 0 }]] } }, active: false, settings: { executionOrder: 'v1' }, staticData: null, pinData: { 'Manual Trigger': [{ json: {} }] }, tags: [] });
+		await api('POST', `/rest/workflows/${delWf.id}/run`, { triggerToStartFrom: { name: 'Manual Trigger' } });
+		await api('POST', `/rest/workflows/${delWf.id}/archive`).catch(() => {});
+		await api('DELETE', `/rest/workflows/${delWf.id}`).catch(() => {});
+	}
+	await api('DELETE', `/rest/workflows/${wf.id}`).catch(() => {});
+	return true;
+}
+
+/** Create URL task → Edit (destination + priority) → delete. */
+async function testEditOperation(api, getExecution, type, c, unique) {
+	const nodes = [
+		{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
+		{ name: 'Create URL', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'task', operation: 'createUrl', url: 'https://httpbin.org/bytes/1024' }, credentials: c },
+		{ name: 'Get Tasks', type, typeVersion: 1, position: [480, 0], parameters: { resource: 'task', operation: 'getMany', limit: 10 }, credentials: c },
+		{ name: 'Edit Task', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'task', operation: 'edit', taskId: '={{ $json.tasks[$json.tasks.length - 1].id }}', priority: 'high' }, credentials: c },
+	];
+	const connections = {
+		'Manual Trigger': { main: [[{ node: 'Create URL', type: 'main', index: 0 }]] },
+		'Create URL': { main: [[{ node: 'Get Tasks', type: 'main', index: 0 }]] },
+		'Get Tasks': { main: [[{ node: 'Edit Task', type: 'main', index: 0 }]] },
+	};
+	const { wf, summary } = await runWorkflow(api, getExecution, type, c, `${unique}-edit`, nodes, connections, { 'Manual Trigger': [{ json: {} }] });
+	const editOut = summary['Edit Task']?.[0];
+	if (editOut?.status === 'error') throw new Error(`Edit failed: ${editOut.error}`);
+	console.log('✅ Edit ran:', JSON.stringify(editOut?.json?.[0]));
+	// cleanup: delete the created URL task
+	const tasksOut = summary['Get Tasks']?.[0]?.json?.[0]?.tasks ?? [];
+	const tid = tasksOut.length ? tasksOut[tasksOut.length - 1].id : undefined;
+	if (tid) {
+		const delNodes = [
+			{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
+			{ name: 'Delete Task', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'task', operation: 'delete', taskId: tid }, credentials: c },
+		];
+		const delWf = await api('POST', '/rest/workflows', { name: `DS Cleanup ${unique}`, nodes: delNodes, connections: { 'Manual Trigger': { main: [[{ node: 'Delete Task', type: 'main', index: 0 }]] } }, active: false, settings: { executionOrder: 'v1' }, staticData: null, pinData: { 'Manual Trigger': [{ json: {} }] }, tags: [] });
+		await api('POST', `/rest/workflows/${delWf.id}/run`, { triggerToStartFrom: { name: 'Manual Trigger' } });
+		await api('POST', `/rest/workflows/${delWf.id}/archive`).catch(() => {});
+		await api('DELETE', `/rest/workflows/${delWf.id}`).catch(() => {});
+	}
+	await api('DELETE', `/rest/workflows/${wf.id}`).catch(() => {});
+	return true;
 }
 
 main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; });

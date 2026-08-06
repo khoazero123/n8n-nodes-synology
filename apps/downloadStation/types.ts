@@ -145,3 +145,42 @@ export interface BTSearchResult {
 	offset: number;
 	items: BTSearchItem[];
 }
+
+export interface TaskListFile {
+	index: number;
+	name: string;
+	size: number;
+}
+
+export interface TaskListInfo {
+	title: string;
+	type: string;
+	size: number;
+	files: TaskListFile[];
+}
+
+export interface GetTaskListInput {
+	listId: string;
+}
+
+export interface DownloadTaskListInput {
+	listId: string;
+	destination?: string;
+	createSubfolder?: boolean;
+	/** File indices to download; omit to download all. */
+	selected?: number[];
+}
+
+export interface DeleteTaskListInput {
+	listId: string;
+}
+
+export interface EditTaskInput {
+	taskId: string;
+	destination?: string;
+	priority?: 'low' | 'normal' | 'high';
+}
+
+export interface GetTaskSourceInput {
+	taskId: string;
+}

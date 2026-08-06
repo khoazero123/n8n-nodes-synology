@@ -169,13 +169,24 @@ size_downloaded, size_uploaded, speed_download, speed_upload
 ### Resource: `task`
 | Operation | V1 Method | V2 Method | Input params |
 |-----------|-----------|-----------|--------------|
-| `createUrl` | `create` (uri=) | `create` (type=url) | url, destination? |
+| `createUrl` | `create` (uri=) | `create` (type=url) | url, destination? — **V1→V2 fallback verified 2026-08-06 (V1 works on DSM7 when destination exists; V2 `type=url` requires `create_list`)** |
 | `createTorrent` | `create` (file=) | `create` (type=file), multipart field `torrent` | **Implemented; full lifecycle verified 2026-08-06 (create→getinfo→pause→resume→delete, cookie/token auth, cleanup)** |
+| `edit` | `edit` | `edit` | taskId, destination?, priority? (low/normal/high) — **verified** |
+| `downloadSource` | — | `SYNO.DownloadStation2.Task.Source` v2 `download` | taskId → binary torrent file (md5 identical to original) — **verified** |
 | `getAll` | `list` | `list` | offset?, limit?, additional? |
 | `get` | `getinfo` | `getinfo` | taskId, additional? |
 | `pause` | `pause` | `pause` | taskId |
 | `resume` | `resume` | `resume` | taskId |
 | `delete` | `delete` | `delete` | taskId, forceComplete? |
+
+### Resource: `taskList`
+| Operation | Method | Input params |
+|-----------|--------|--------------|
+| `getFiles` | `SYNO.DownloadStation2.Task.List` v2 `get` | listId → files/title/size — **verified** |
+| `confirmDownload` | `SYNO.DownloadStation2.Task.List.Polling` v2 `download` | listId, destination (**required**), create_subfolder?, selected? → polling task_id — **verified** |
+| `getDownloadStatus` | `...Task.List.Polling` v2 `download_status` | polling task_id → `{data:{task_id:[...]}, finish}` — **verified** |
+| `stopDownload` | `...Task.List.Polling` v2 `download_stop` | polling task_id — **verified** |
+| `delete` | `SYNO.DownloadStation2.Task.List` v2 `delete` | listId — **verified** |
 
 ### Resource: `statistics`
 | Operation | Method | Input |
@@ -298,12 +309,12 @@ nodes/SynologyDownloadStation/
 
 ### Implementation Complete (2026-08-05)
 
-Phase 1 covers the safe, documented V1 operations plus verified read-only Info/BTSearch. URL creation remains implemented with V1 only; V2 URL fallback is still pending, while torrent upload is now verified against the tested NAS through the frontend-compatible V2 multipart contract and cookie/token authentication.
+Phase 1 covers the documented V1 operations (create with V1→V2 fallback, list, get, pause, resume, delete, edit) plus verified read-only Info/BTSearch, the full V2 task-list flow (create_list=true → Task.List get/confirm/status/delete), and torrent source download. Torrent upload and task-list flows are verified against the live NAS through the frontend-compatible V2 multipart contract and cookie/token authentication.
 
 - `apps/downloadStation/constants.ts` — API strings, session name, task status map, additional fields
 - `apps/downloadStation/types.ts` — TypeScript interfaces for tasks, statistics, inputs
 - `apps/downloadStation/DownloadStationClient.ts` — Client class wrapping SynologyClient with `requestPath()` for app-specific CGI paths
-- `nodes/SynologyDownloadStation/SynologyDownloadStation.node.ts` — Node definition with task (createUrl, getMany, get, pause, resume, delete) and statistics (get) operations
+- `nodes/SynologyDownloadStation/SynologyDownloadStation.node.ts` — Node definition with task (createTorrent, createUrl, downloadSource, edit, getMany, get, pause, resume, delete), taskList (getFiles, confirmDownload, getDownloadStatus, stopDownload, delete), statistics (get) and info (get, getConfig) operations
 - `nodes/SynologyDownloadStation/SynologyDownloadStation.svg` + `-dark.svg` — Copied themed icons from NoteStation (placeholder)
 - Extended `SynologyClient` with `requestPath()` method for app-specific webapi paths
 - Updated `package.json` `n8n.nodes` entry

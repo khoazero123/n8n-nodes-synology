@@ -13,6 +13,9 @@ export const DOWNLOAD_BT_SEARCH_API_VERSION = 1;
 // V2 API (internal, undocumented — use only as fallback)
 export const DOWNLOAD_TASK_V2_API = 'SYNO.DownloadStation2.Task';
 export const DOWNLOAD_TASK_V2_API_VERSION = 2;
+export const DOWNLOAD_TASK_LIST_V2_API = 'SYNO.DownloadStation2.Task.List';
+export const DOWNLOAD_TASK_LIST_POLLING_V2_API = 'SYNO.DownloadStation2.Task.List.Polling';
+export const DOWNLOAD_TASK_LIST_V2_API_VERSION = 2;
 
 // Task status codes (from official DS Web API PDF, Appendix A)
 export const TASK_STATUS_MAP: Record<number, string> = {

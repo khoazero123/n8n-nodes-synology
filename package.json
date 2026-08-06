@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-synology",
-  "version": "0.1.3",
+  "version": "0.1.4-dev.0",
   "description": "n8n community nodes for Synology NAS applications",
   "keywords": [
     "n8n-community-node-package",

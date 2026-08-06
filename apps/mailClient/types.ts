@@ -74,6 +74,7 @@ export interface ListThreadsInput {
 	limit?: number;
 	additional?: string[];
 	keyword?: string;
+	from?: string;
 }
 
 export interface GetMessageInput {

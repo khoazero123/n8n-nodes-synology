@@ -54,6 +54,32 @@ export class SynologyMailTrigger implements INodeType {
 				description: 'Optional keyword filter — only emit threads matching it',
 			},
 			{
+				displayName: 'From (Sender)',
+				name: 'from',
+				type: 'string',
+				default: '',
+				description: 'Only emit emails from this sender address (server-side filter)',
+			},
+			{
+				displayName: 'Unread Only',
+				name: 'unreadOnly',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to only emit unread emails (client-side filter on thread.unread)',
+			},
+			{
+				displayName: 'Read Status',
+				name: 'readStatus',
+				type: 'options',
+				options: [
+					{ name: 'Both', value: 'both' },
+					{ name: 'Unread', value: 'unread' },
+					{ name: 'Read', value: 'read' },
+				],
+				default: 'both',
+				description: 'Filter by read status (client-side filter on thread.unread)',
+			},
+			{
 				displayName: 'Max Threads Per Poll',
 				name: 'maxThreads',
 				type: 'number',
@@ -70,6 +96,9 @@ export class SynologyMailTrigger implements INodeType {
 
 		const mailbox = this.getNodeParameter('mailbox', 'inbox') as string;
 		const keyword = this.getNodeParameter('keyword', '') as string;
+		const from = this.getNodeParameter('from', '') as string;
+		const unreadOnly = this.getNodeParameter('unreadOnly', false) as boolean;
+		const readStatus = this.getNodeParameter('readStatus', 'both') as string;
 		const maxThreads = this.getNodeParameter('maxThreads', 50) as number;
 		const mailboxId = MAILBOX_ID_MAP[mailbox];
 
@@ -78,6 +107,7 @@ export class SynologyMailTrigger implements INodeType {
 			offset: 0,
 			limit: maxThreads,
 			keyword: keyword || undefined,
+			from: from || undefined,
 		});
 
 		const staticData = this.getWorkflowStaticData('global');
@@ -85,9 +115,19 @@ export class SynologyMailTrigger implements INodeType {
 		const seenIds = new Set<number>(Array.isArray(staticData[seenKey]) ? staticData[seenKey] as number[] : []);
 		const now = Date.now();
 
-		// New threads = not in seen set. Sort newest first, cap by limit.
+		// Client-side filters: unread/read status (server does not filter these reliably)
+		const filterRead = (unread: unknown): boolean => {
+			if (readStatus === 'both' && !unreadOnly) return true;
+			const isUnread = unread === 1 || unread === true || unread === '1' || unread === 'true';
+			if (unreadOnly || readStatus === 'unread') return isUnread;
+			if (readStatus === 'read') return !isUnread;
+			return true;
+		};
+
+		// New threads = not in seen set, matching read filters. Sort newest first, cap by limit.
 		const newThreads = (threads.thread ?? [])
 			.filter((t) => !seenIds.has(t.id))
+			.filter((t) => filterRead(t.unread))
 			.slice(0, maxThreads);
 
 		// Persist all current thread ids so they are not re-emitted next poll.

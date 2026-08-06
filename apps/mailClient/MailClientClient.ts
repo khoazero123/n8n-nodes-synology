@@ -60,6 +60,7 @@ export class MailClientClient {
 			conversation_view: true,
 		};
 		if (input.keyword) params.keyword = input.keyword;
+		if (input.from) condition.push({ name: 'from', value: input.from });
 
 		return await this.synology.requestPath({
 			api: MAIL_THREAD_API,

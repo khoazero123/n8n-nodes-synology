@@ -79,7 +79,7 @@ async function main() {
 		const type = 'CUSTOM.synologyMailTrigger';
 		const triggerNode = {
 			name: 'Mail Trigger', type, typeVersion: 1, position: [0, 0],
-			parameters: { mailbox: 'inbox', keyword: '', maxThreads: 50 },
+			parameters: { mailbox: 'inbox', keyword: '', from: 'sender-filter@megavn.net', unreadOnly: false, readStatus: 'both', maxThreads: 50 },
 			credentials: { synologyApi: { id: credId, name: 'x' } },
 		};
 		workflow = await request('POST', '/rest/workflows', {
@@ -107,6 +107,9 @@ async function main() {
 		const run = await request('POST', `/rest/workflows/${wfId}/run`, { triggerToStartFrom: { name: 'Mail Trigger' } }, authHeaders);
 		console.log('run:', run.statusCode, run.raw.slice(0, 150));
 		await sleep(8000);
+		// Note: manual trigger runs do not share workflow static data with the
+		// activated poll loop, so dedup is not asserted here. Production (active
+		// workflow) persists seen ids between polls via static data.
 		const execId = run.json?.data?.executionId;
 
 		// 3. Check the trigger execution for emitted data
@@ -185,10 +188,10 @@ import smtplib
 from email.mime.text import MIMEText
 msg = MIMEText("Trigger node test body from n8n E2E")
 msg["Subject"] = "MailPlus Trigger Test"
-msg["From"] = "khoa@megavn.net"
+msg["From"] = "sender-filter@megavn.net"
 msg["To"] = "khoa@megavn.net"
 s = smtplib.SMTP("192.168.1.175", 25, timeout=10)
-s.sendmail("khoa@megavn.net", ["khoa@megavn.net"], msg.as_string())
+s.sendmail("sender-filter@megavn.net", ["khoa@megavn.net"], msg.as_string())
 s.quit()
 print("sent")
 `;

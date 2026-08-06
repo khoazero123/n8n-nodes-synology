@@ -73,10 +73,15 @@ Workflow: Get Info → Mailboxes → Labels → Threads (inbox) → Message get 
 
 Polling trigger (MailPlus không có webhook push). Mỗi poll gọi `Thread.list` cho mailbox chọn, so với `staticData` (thread ids đã thấy), emit các thread mới.
 
-Params:
+Params (filters tham khảo Gmail trigger n8n core):
 - **Mailbox**: inbox/archived/drafts/sent/spam/trash/scheduled (default inbox)
-- **Search Keyword**: lọc thread theo keyword
+- **Search Keyword**: lọc thread theo keyword (server-side)
+- **From (Sender)**: chỉ emit mail từ sender — server-side qua condition `from` (verified)
+- **Unread Only** / **Read Status** (both/unread/read): client-side filter trên `thread.unread`
 - **Max Threads Per Poll**: default 50
+
+Lưu ý dedup: static data (`mailSeen_<mailbox>`) persist giữa các poll khi workflow ACTIVE.
+Manual trigger run trong n8n KHÔNG chia sẻ static data → mỗi manual run coi tất cả thread là mới.
 
 Output item: `{mailbox, mailboxId, thread, message, triggeredAt}`. Dedup qua `getWorkflowStaticData('global')` key `mailSeen_<mailbox>`.
 

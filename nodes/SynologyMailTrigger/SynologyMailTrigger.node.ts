@@ -20,7 +20,7 @@ export class SynologyMailTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Synology MailPlus Trigger',
 		name: 'synologyMailTrigger',
-		icon: { light: 'file:SynologyMailClient.svg', dark: 'file:SynologyMailClient-dark.svg' },
+		icon: { light: 'file:SynologyMailTrigger.svg', dark: 'file:SynologyMailTrigger-dark.svg' },
 		group: ['trigger'],
 		version: 1,
 		subtitle: '={{ $parameter["mailbox"] + " mailbox" }}',
@@ -30,19 +30,20 @@ export class SynologyMailTrigger implements INodeType {
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'synologyApi', required: true }],
 		polling: true,
-		properties: [
+		usableAsTool: true,
+	properties: [
 			{
 				displayName: 'Mailbox',
 				name: 'mailbox',
 				type: 'options',
 				options: [
-					{ name: 'Inbox', value: 'inbox' },
 					{ name: 'Archived', value: 'archived' },
 					{ name: 'Drafts', value: 'drafts' },
+					{ name: 'Inbox', value: 'inbox' },
+					{ name: 'Scheduled', value: 'scheduled' },
 					{ name: 'Sent', value: 'sent' },
 					{ name: 'Spam', value: 'spam' },
 					{ name: 'Trash', value: 'trash' },
-					{ name: 'Scheduled', value: 'scheduled' },
 				],
 				default: 'inbox',
 			},

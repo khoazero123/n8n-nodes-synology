@@ -94,3 +94,38 @@ Manual trigger run trong n8n KHÔNG chia sẻ static data → mỗi manual run c
 Output item: `{mailbox, mailboxId, thread, message, triggeredAt}`. Dedup qua `getWorkflowStaticData('global')` key `mailSeen_<mailbox>`.
 
 Verified live 2026-08-06: gửi email test → poll emit thread mới với subject đúng (E2E `test/e2e-mailtrigger-n8n.js`).
+
+
+## 8. Extended Operations (2026-08-06, all E2E verified live)
+
+### Message
+- Mark Read / Mark Unread: `Message.set_read` — `read` JSON-encoded boolean
+- Star / Unstar: `Message.set_star` — `star` 1/0 (SỐ)
+- Move: `Message.set_mailbox` — `id` array + `mailbox_id`
+
+### Thread
+- Mark Read / Unread: `Thread.set_read` — `read` JSON bool + `conversation_view`
+- Add / Remove Label: `Thread.add_label`/`remove_label` — `label_id` array
+- Move: `Thread.set_mailbox` — `mailbox_id`=đích, `operate_mailbox_id`=nguồn
+- Delete: `Thread.delete` — `mailbox_id` (mailbox chứa thread)
+
+### Label
+- Create: `name` + `background_color` + `text_color` — **chỉ chấp nhận màu trong palette cố định** (uppercase hex không `#`):
+  - bg: DCE1E6, FFCCCC, FFD9B2, FFEC8C, DDF29D, C4F5D4, C2F2F2, C8EDFA, CCE6FF, E2D9FF, FFD9F2, FFC0D2, 64696E, E04343, E67300, CCAA00, 739900, 009933, 009999, 008FBF, 1470CC, A18AE6, E67EC3, F56496
+  - text: 50555A, C73232, BF6000, 997F00, 567300, 007326, 007373, 007399, 0059B3, 5536B3, B32483, A12A62, FFFFFF
+- Update: `Label.set`; Delete: `Label.delete` (id array)
+
+### Mailbox
+- Create: `path`+`name`; Rename: `Mailbox.set`; Delete: `Mailbox.delete` (cần `conversation_view`)
+
+### Draft
+- Reply: create + `refer_to` + `draft_type=1`; Forward: `draft_type=2`
+- Upload Attachment: `Attachment.upload` multipart (field `file`) — `id`=draftId, `filename` JSON-encoded
+- Scheduled send: `schedule_time` (epoch seconds)
+
+### Khác
+- Signature: list/create/delete (`is_default` JSON bool)
+- Filter: list (rules); SMTP Account: list; MailTemplate: list; MailMerge: list
+- Search: `Thread.list` + `keyword` top-level param (verified, không cần is_search)
+
+### E2E test: test/e2e-mailclient-extended.js — tất cả pass live, cleanup sạch.

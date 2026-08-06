@@ -101,8 +101,87 @@ export interface CreateDraftInput {
 	body?: string;
 	mailbox_id?: number;
 	attachments?: unknown[];
+	/** Epoch seconds to schedule send (0 = send immediately). */
+	scheduleTime?: number;
 }
 
 export interface SendDraftInput {
 	draftId: number;
+}
+
+export interface SetMessageReadInput {
+	messageIds: number[];
+	read: boolean;
+}
+
+export interface SetMessageStarInput {
+	messageIds: number[];
+	star: boolean;
+}
+
+export interface MoveMessageInput {
+	messageIds: number[];
+	mailboxId: number;
+}
+
+export interface SetThreadReadInput {
+	threadIds: number[];
+	read: boolean;
+}
+
+export interface ThreadLabelInput {
+	threadIds: number[];
+	labelId: number;
+}
+
+export interface DeleteThreadInput {
+	threadIds: number[];
+	mailboxId: number;
+}
+
+export interface MoveThreadInput {
+	threadIds: number[];
+	mailboxId: number;
+	operateMailboxId: number;
+}
+
+export interface CreateLabelInput {
+	name: string;
+	backgroundColor: string;
+	textColor: string;
+}
+
+export interface UpdateLabelInput {
+	labelId: number;
+	name?: string;
+	backgroundColor?: string;
+	textColor?: string;
+}
+
+export interface CreateMailboxInput {
+	name: string;
+	conversationView?: boolean;
+}
+
+export interface UpdateMailboxInput {
+	mailboxId: number;
+	name?: string;
+	conversationView?: boolean;
+}
+
+export interface CreateSignatureInput {
+	name: string;
+	content: string;
+	isDefault?: boolean;
+}
+
+export interface CreateReplyDraftInput {
+	from: string;
+	to: string[];
+	subject: string;
+	body: string;
+	referTo: number;
+	draftType: 1 | 2; // 1=reply, 2=forward
+	cc?: string[];
+	bcc?: string[];
 }

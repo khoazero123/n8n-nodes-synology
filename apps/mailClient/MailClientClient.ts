@@ -27,6 +27,19 @@ import type {
 	ListLabelsInput,
 	CreateDraftInput,
 	SendDraftInput,
+	SetMessageReadInput,
+	SetMessageStarInput,
+	MoveMessageInput,
+	SetThreadReadInput,
+	ThreadLabelInput,
+	DeleteThreadInput,
+	MoveThreadInput,
+	CreateLabelInput,
+	UpdateLabelInput,
+	CreateMailboxInput,
+	UpdateMailboxInput,
+	CreateSignatureInput,
+	CreateReplyDraftInput,
 } from './types';
 import type { SynologyClient } from '../../transport/SynologyClient';
 
@@ -140,6 +153,7 @@ export class MailClientClient {
 		if (input.body !== undefined) params.body = input.body;
 		if (input.mailbox_id !== undefined) params.mailbox_id = input.mailbox_id;
 		if (input.attachments) params.attachments = JSON.stringify(input.attachments);
+		if (input.scheduleTime !== undefined && input.scheduleTime > 0) params.schedule_time = input.scheduleTime;
 
 		return await this.synology.requestPath({
 			api: MAIL_DRAFT_API,
@@ -170,5 +184,287 @@ export class MailClientClient {
 			session: MAIL_CLIENT_SESSION,
 			params: { id: attachmentId },
 		});
+	}
+
+	/** Upload an attachment to a draft (multipart). Returns attachment id. */
+	async uploadAttachment(draftId: number, filename: string, data: Buffer): Promise<IDataObject> {
+		return await this.synology.requestMultipart(
+			{
+				api: MAIL_ATTACHMENT_API,
+				version: MAIL_ATTACHMENT_API_VERSION,
+				method: 'upload',
+				session: MAIL_CLIENT_SESSION,
+				multipartPath: 'entry.cgi',
+				authMode: 'cookie',
+				params: {
+					id: draftId,
+					filename: JSON.stringify(filename),
+				},
+			},
+			{ fieldName: 'file', filename, data, contentType: 'application/octet-stream' },
+			{},
+		);
+	}
+
+	/** Mark messages read/unread. */
+	async setMessageRead(input: SetMessageReadInput): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_MESSAGE_API,
+			version: MAIL_MESSAGE_API_VERSION,
+			method: 'set_read',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify(input.messageIds), read: input.read },
+		}, 'entry.cgi');
+	}
+
+	/** Star/unstar messages. */
+	async setMessageStar(input: SetMessageStarInput): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_MESSAGE_API,
+			version: MAIL_MESSAGE_API_VERSION,
+			method: 'set_star',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify(input.messageIds), star: input.star ? 1 : 0 },
+		}, 'entry.cgi');
+	}
+
+	/** Move messages to another mailbox. */
+	async moveMessage(input: MoveMessageInput): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_MESSAGE_API,
+			version: MAIL_MESSAGE_API_VERSION,
+			method: 'set_mailbox',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify(input.messageIds), mailbox_id: input.mailboxId },
+		}, 'entry.cgi');
+	}
+
+	/** Mark threads read/unread. */
+	async setThreadRead(input: SetThreadReadInput): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_THREAD_API,
+			version: MAIL_THREAD_API_VERSION,
+			method: 'set_read',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify(input.threadIds), read: input.read, conversation_view: true },
+		}, 'entry.cgi');
+	}
+
+	/** Add a label to threads. */
+	async addThreadLabel(input: ThreadLabelInput): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_THREAD_API,
+			version: MAIL_THREAD_API_VERSION,
+			method: 'add_label',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify(input.threadIds), label_id: JSON.stringify([input.labelId]), conversation_view: true },
+		}, 'entry.cgi');
+	}
+
+	/** Remove a label from threads. */
+	async removeThreadLabel(input: ThreadLabelInput): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_THREAD_API,
+			version: MAIL_THREAD_API_VERSION,
+			method: 'remove_label',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify(input.threadIds), label_id: JSON.stringify([input.labelId]), conversation_view: true },
+		}, 'entry.cgi');
+	}
+
+	/** Delete threads (move to trash of the given mailbox). */
+	async deleteThread(input: DeleteThreadInput): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_THREAD_API,
+			version: MAIL_THREAD_API_VERSION,
+			method: 'delete',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify(input.threadIds), mailbox_id: input.mailboxId, conversation_view: true },
+		}, 'entry.cgi');
+	}
+
+	/** Move threads between mailboxes. */
+	async moveThread(input: MoveThreadInput): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_THREAD_API,
+			version: MAIL_THREAD_API_VERSION,
+			method: 'set_mailbox',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify(input.threadIds), mailbox_id: input.mailboxId, operate_mailbox_id: input.operateMailboxId, conversation_view: true },
+		}, 'entry.cgi');
+	}
+
+	/** Create a label. Colors are hex WITHOUT '#' (e.g. ff0000). */
+	async createLabel(input: CreateLabelInput): Promise<IDataObject> {
+		const strip = (c: string) => c.replace(/^#/, '');
+		return await this.synology.requestPath({
+			api: MAIL_LABEL_API,
+			version: MAIL_LABEL_API_VERSION,
+			method: 'create',
+			session: MAIL_CLIENT_SESSION,
+			params: { name: input.name, background_color: strip(input.backgroundColor), text_color: strip(input.textColor) },
+		}, 'entry.cgi');
+	}
+
+	/** Update a label. */
+	async updateLabel(input: UpdateLabelInput): Promise<IDataObject> {
+		const strip = (c: string) => c.replace(/^#/, '');
+		const params: IDataObject = { id: input.labelId };
+		if (input.name !== undefined) params.name = input.name;
+		if (input.backgroundColor !== undefined) params.background_color = strip(input.backgroundColor);
+		if (input.textColor !== undefined) params.text_color = strip(input.textColor);
+		return await this.synology.requestPath({
+			api: MAIL_LABEL_API,
+			version: MAIL_LABEL_API_VERSION,
+			method: 'set',
+			session: MAIL_CLIENT_SESSION,
+			params,
+		}, 'entry.cgi');
+	}
+
+	/** Delete labels. */
+	async deleteLabels(labelIds: number[]): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_LABEL_API,
+			version: MAIL_LABEL_API_VERSION,
+			method: 'delete',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify(labelIds) },
+		}, 'entry.cgi');
+	}
+
+	/** Create a mailbox. */
+	async createMailbox(input: CreateMailboxInput): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_MAILBOX_API,
+			version: MAIL_MAILBOX_API_VERSION,
+			method: 'create',
+			session: MAIL_CLIENT_SESSION,
+			params: { path: input.name, name: input.name },
+		}, 'entry.cgi');
+	}
+
+	/** Rename a mailbox. */
+	async updateMailbox(input: UpdateMailboxInput): Promise<IDataObject> {
+		const params: IDataObject = { id: input.mailboxId, conversation_view: input.conversationView ?? true };
+		if (input.name !== undefined) params.path = input.name;
+		return await this.synology.requestPath({
+			api: MAIL_MAILBOX_API,
+			version: MAIL_MAILBOX_API_VERSION,
+			method: 'set',
+			session: MAIL_CLIENT_SESSION,
+			params,
+		}, 'entry.cgi');
+	}
+
+	/** Delete a mailbox. */
+	async deleteMailbox(mailboxId: number): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: MAIL_MAILBOX_API,
+			version: MAIL_MAILBOX_API_VERSION,
+			method: 'delete',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify([mailboxId]), conversation_view: true },
+		}, 'entry.cgi');
+	}
+
+	/** List signatures. */
+	async listSignatures(): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: 'SYNO.MailClient.Signature',
+			version: 1,
+			method: 'list',
+			session: MAIL_CLIENT_SESSION,
+			params: {},
+		}, 'entry.cgi');
+	}
+
+	/** Create a signature. */
+	async createSignature(input: CreateSignatureInput): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: 'SYNO.MailClient.Signature',
+			version: 1,
+			method: 'create',
+			session: MAIL_CLIENT_SESSION,
+			params: { name: input.name, content: input.content, is_default: JSON.stringify(input.isDefault ?? false) },
+		}, 'entry.cgi');
+	}
+
+	/** Delete signatures. */
+	async deleteSignatures(signatureIds: number[]): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: 'SYNO.MailClient.Signature',
+			version: 1,
+			method: 'delete',
+			session: MAIL_CLIENT_SESSION,
+			params: { id: JSON.stringify(signatureIds) },
+		}, 'entry.cgi');
+	}
+
+	/** Create a reply or forward draft. draftType: 1=reply, 2=forward. */
+	async createReplyDraft(input: CreateReplyDraftInput): Promise<IDataObject> {
+		const params: IDataObject = {
+			from: input.from,
+			to: JSON.stringify(input.to),
+			subject: input.subject,
+			body: input.body,
+			refer_to: input.referTo,
+			draft_type: input.draftType,
+			enable_read_request: false,
+			enable_delivery_request: false,
+		};
+		if (input.cc) params.cc = JSON.stringify(input.cc);
+		if (input.bcc) params.bcc = JSON.stringify(input.bcc);
+		return await this.synology.requestPath({
+			api: MAIL_DRAFT_API,
+			version: MAIL_DRAFT_API_VERSION,
+			method: 'create',
+			session: MAIL_CLIENT_SESSION,
+			params,
+		}, 'entry.cgi');
+	}
+
+	/** List email filters (rules). */
+	async listFilters(): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: 'SYNO.MailClient.Filter',
+			version: 3,
+			method: 'list',
+			session: MAIL_CLIENT_SESSION,
+			params: {},
+		}, 'entry.cgi');
+	}
+
+	/** List SMTP accounts. */
+	async listSmtpAccounts(): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: 'SYNO.MailClient.Setting.SMTP',
+			version: 2,
+			method: 'list',
+			session: MAIL_CLIENT_SESSION,
+			params: {},
+		}, 'entry.cgi');
+	}
+
+	/** List mail templates. */
+	async listMailTemplates(): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: 'SYNO.MailClient.MailTemplate',
+			version: 1,
+			method: 'list',
+			session: MAIL_CLIENT_SESSION,
+			params: {},
+		}, 'entry.cgi');
+	}
+
+	/** List mail merge tasks. */
+	async listMailMerges(): Promise<IDataObject> {
+		return await this.synology.requestPath({
+			api: 'SYNO.MailClient.MailMerge',
+			version: 1,
+			method: 'list',
+			session: MAIL_CLIENT_SESSION,
+			params: {},
+		}, 'entry.cgi');
 	}
 }

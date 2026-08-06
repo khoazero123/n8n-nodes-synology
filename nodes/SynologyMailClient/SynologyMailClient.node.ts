@@ -5,7 +5,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeApiError, NodeConnectionTypes } from 'n8n-workflow';
+import { NodeApiError } from 'n8n-workflow';
 import { MailClientClient } from '../../apps/mailClient/MailClientClient';
 import { MAILBOX_ID_MAP } from '../../apps/mailClient/constants';
 import { SynologyClient } from '../../transport/SynologyClient';
@@ -98,8 +98,8 @@ export class SynologyMailClient implements INodeType {
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Work with Synology MailPlus email: list threads and messages, read mail, manage drafts, download attachments',
 		defaults: { name: 'Synology MailPlus' },
-		inputs: [NodeConnectionTypes.Main],
-		outputs: [NodeConnectionTypes.Main],
+		inputs: ['main'],
+		outputs: ['main'],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,
 		properties: [

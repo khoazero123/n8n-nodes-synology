@@ -5,7 +5,7 @@ import type {
 	INodeTypeDescription,
 	IPollFunctions,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
+import {  } from 'n8n-workflow';
 import { MailClientClient } from '../../apps/mailClient/MailClientClient';
 import { MAILBOX_ID_MAP } from '../../apps/mailClient/constants';
 import { SynologyClient } from '../../transport/SynologyClient';
@@ -27,7 +27,7 @@ export class SynologyMailTrigger implements INodeType {
 		description: 'Triggers when new email arrives in a Synology MailPlus mailbox',
 		defaults: { name: 'Synology MailPlus Trigger' },
 		inputs: [],
-		outputs: [NodeConnectionTypes.Main],
+		outputs: ['main'],
 		credentials: [{ name: 'synologyApi', required: true }],
 		polling: true,
 		usableAsTool: true,

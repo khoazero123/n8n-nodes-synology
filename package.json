@@ -43,7 +43,8 @@
     "test:e2e:mail:n8n": "node test/e2e-mailclient-n8n.js",
     "test:e2e:mail:trigger": "node test/e2e-mailtrigger-n8n.js",
     "test:e2e:mail:filters": "node test/e2e-mailtrigger-filters.js",
-    "test:e2e:mail:extended": "node test/e2e-mailclient-extended.js"
+    "test:e2e:mail:extended": "node test/e2e-mailclient-extended.js",
+    "test:e2e:chat": "node test/e2e-chat-n8n.js"
   },
   "files": [
     "dist"
@@ -58,7 +59,8 @@
       "dist/nodes/SynologyDrive/SynologyDrive.node.js",
       "dist/nodes/SynologyDownloadStation/SynologyDownloadStation.node.js",
       "dist/nodes/SynologyMailClient/SynologyMailClient.node.js",
-      "dist/nodes/SynologyMailTrigger/SynologyMailTrigger.node.js"
+      "dist/nodes/SynologyMailTrigger/SynologyMailTrigger.node.js",
+      "dist/nodes/SynologyChat/SynologyChat.node.js"
     ]
   },
   "devDependencies": {

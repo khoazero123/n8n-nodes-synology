@@ -284,9 +284,10 @@ export class ChatClient {
 	}
 
 	/** Create a named channel (session required). */
-	async createChannel(name: string, memberIds?: number[]): Promise<IDataObject> {
+	async createChannel(name: string, memberIds?: number[], encrypted?: boolean): Promise<IDataObject> {
 		const params: IDataObject = { name };
 		if (memberIds) params.member_ids = memberIds;
+		if (encrypted) params.encrypted = true;
 		return await this.synology.request({
 			api: CHAT_CHANNEL_NAMED_API,
 			version: CHAT_CHANNEL_API_VERSION,

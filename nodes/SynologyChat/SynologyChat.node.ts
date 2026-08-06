@@ -273,6 +273,14 @@ export class SynologyChat implements INodeType {
 				displayOptions: { show: { resource: ['channel'], operation: ['create'] } },
 				description: 'Comma-separated user IDs to add to the channel (optional)',
 			},
+			{
+				displayName: 'Encrypted Channel',
+				name: 'chEncrypted',
+				type: 'boolean',
+				default: false,
+				displayOptions: { show: { resource: ['channel'], operation: ['create'] } },
+				description: 'Create an end-to-end encrypted channel. Requires the user to have enabled Encryption in Chat (Profile → Settings) so a keypair exists (otherwise the NAS returns 408 keypair not exist)',
+			},
 			// --- Post: List ---
 			{
 				displayName: 'Channel ID',
@@ -381,6 +389,7 @@ export class SynologyChat implements INodeType {
 					data = await chat.createChannel(
 						this.getNodeParameter('chName', i) as string,
 						memberIdsRaw ? memberIdsRaw.split(',').map((s) => Number(s.trim())).filter((n) => !Number.isNaN(n)) : undefined,
+						this.getNodeParameter('chEncrypted', i, false) as boolean,
 					);
 				}
 			} else if (resource === 'post' && operation === 'list') {

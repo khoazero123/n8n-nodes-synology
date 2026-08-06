@@ -76,23 +76,37 @@ after test.
 
 ## Encrypted channels (2026-08-06, verified live)
 
-- `Channel.Named.create` accepts `encrypted: true` → creates an E2E
-  encrypted channel.
-- **Requirement:** the creating user MUST have an E2E keypair first.
-  - No keypair → error **408 "keypair not exist"** (channel create fails
-    for ALL channels, not just encrypted ones).
+**Confirmed working:** `Channel.Named.create {type: "private", name,
+encrypted: true}` creates an E2E encrypted channel (verified: channels
+with `encrypted = t` in DB, created both via API probe and the node).
+
+### Key findings
+
+- **`type` is REQUIRED** and must be `"private"` for encrypted channels.
+  - `type: "public"` → **422 "public cannot encrypt"** — the server tries
+    to encrypt the channel key for EVERY user, and most users have no E2E
+    keypair.
+  - `type: "private"` (no member_ids) → works; members are invited
+    separately afterwards.
+- **Do NOT pass `member_ids` on create** → error 119 (invalid). Frontend
+  never passes members on create; it invites later.
+- **Channel names cannot contain spaces** → 152 "record is not valid"
+  (`regex.FullMatch` fails).
+- The creating user MUST have an E2E keypair:
+  - No keypair → **408 "keypair not exist"** (all channel creates fail).
   - Keypair is generated in the Chat web UI (Profile → Settings →
     Encryption): browser creates a curve25519 pair via libsodium
     `crypto_box_keypair`, stores `private_key_enc = base64(nonce +
-    secretbox(private_key, nonce, blake2b(password)))` via
+    secretbox(base64(private_key), nonce, blake2b(password)))` via
     `SYNO.Chat.User.update_key`.
-  - Setting a synthetic/incorrect keypair via `update_key` makes channel
-    create fail with **422 "public cannot encrypt"** — the server decrypts
-    `private_key_enc` with the user's password and cannot use the key.
-- Users with keypairs on this NAS (as of 2026-08-06): user 6, user 16.
-  User 10 (khoa) has never enabled encryption.
-- **Conclusion for the node:** the `Encrypted Channel` checkbox is
-  correct; the user just needs to enable Encryption once in the Chat UI.
-  The node description documents this requirement.
+  - The stored `private_key_enc` may contain `\r\n` line wraps (64-char
+    base64 wrap) — strip them before base64-decoding.
+- Users with keypairs on this NAS (as of 2026-08-06): user 6, 16, and
+  now user 10 (khoa) after enabling Encryption in the UI.
+- Node `channel.create`: `type` (Private/Public, default Private) +
+  `Encrypted Channel` checkbox. Members: invite separately (API not yet
+  exposed).
 - Reset keypair to empty: `SYNO.Chat.User.update_key {conn_id, public_key:
   "", private_key_enc: ""}` (returns success, restores original state).
+- E2E: `test/e2e-chat-encrypted.js` — create encrypted channel via node,
+  verify encrypted flag in DB, cleanup (SQL).

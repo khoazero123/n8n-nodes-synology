@@ -127,6 +127,7 @@ async function main() {
 		});
 		const type = 'CUSTOM.synologyDownloadStation';
 		const c = { synologyApi: { id: credential.id, name: credential.name } };
+		const hasTorrent = Boolean(process.env.SYNO_TORRENT_PATH);
 		const nodes = [
 			{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
 			{ name: 'Get Info', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'info', operation: 'get' }, credentials: c },
@@ -134,9 +135,11 @@ async function main() {
 			{ name: 'Get Statistics', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'statistics', operation: 'get' }, credentials: c },
 			{ name: 'Get Tasks', type, typeVersion: 1, position: [960, 0], parameters: { resource: 'task', operation: 'getMany', limit: 10 }, credentials: c },
 			{ name: 'BT Search', type, typeVersion: 1, position: [1200, 0], parameters: { resource: 'btSearch', operation: 'search', keyword: 'ubuntu', limit: 5 }, credentials: c },
-			{ name: 'Set Binary', type: 'n8n-nodes-base.set', typeVersion: 3.4, position: [1440, 0], parameters: { assignments: { assignments: [{ id: '1', name: 'data', value: '={{ $json }}', type: 'string' }] } } },
-			{ name: 'Create Torrent', type, typeVersion: 1, position: [1680, 0], parameters: { resource: 'task', operation: 'createTorrent', binaryPropertyName: 'data', createList: false }, credentials: c },
-			{ name: 'Download Source', type, typeVersion: 1, position: [1920, 0], parameters: { resource: 'task', operation: 'downloadSource', taskId: '={{ $json.task_id[0] }}' }, credentials: c },
+			...(hasTorrent ? [
+				{ name: 'Set Binary', type: 'n8n-nodes-base.set', typeVersion: 3.4, position: [1440, 0], parameters: { assignments: { assignments: [{ id: '1', name: 'data', value: '={{ $json }}', type: 'string' }] } } },
+				{ name: 'Create Torrent', type, typeVersion: 1, position: [1680, 0], parameters: { resource: 'task', operation: 'createTorrent', binaryPropertyName: 'data', createList: false }, credentials: c },
+				{ name: 'Download Source', type, typeVersion: 1, position: [1920, 0], parameters: { resource: 'task', operation: 'downloadSource', taskId: '={{ $json.task_id[0] }}' }, credentials: c },
+			] : []),
 		];
 		const connections = {};
 		for (let i = 0; i < nodes.length - 1; i++) connections[nodes[i].name] = { main: [[{ node: nodes[i + 1].name, type: 'main', index: 0 }]] };

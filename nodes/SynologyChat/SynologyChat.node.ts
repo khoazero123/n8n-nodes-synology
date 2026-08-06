@@ -43,6 +43,14 @@ const postOperations = [
 	{ name: 'List', value: 'list', action: 'List posts in a channel' },
 ];
 
+const outgoingWebhookOperations = [
+	{ name: 'Create', value: 'create', action: 'Create an outgoing webhook (channel + trigger word + URL)' },
+	{ name: 'List', value: 'list', action: 'List outgoing webhooks' },
+	{ name: 'Get', value: 'get', action: 'Get an outgoing webhook including its token' },
+	{ name: 'Set', value: 'set', action: 'Update an outgoing webhook' },
+	{ name: 'Delete', value: 'delete', action: 'Delete an outgoing webhook (bot)' },
+];
+
 export class SynologyChat implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Synology Chat',
@@ -67,6 +75,7 @@ export class SynologyChat implements INodeType {
 					{ name: 'Channel', value: 'channel' },
 					{ name: 'Chatbot', value: 'chatbot' },
 					{ name: 'Message', value: 'message' },
+					{ name: 'Outgoing Webhook', value: 'outgoingWebhook' },
 					{ name: 'Post', value: 'post' },
 					{ name: 'Webhook', value: 'webhook' },
 				],
@@ -106,6 +115,15 @@ export class SynologyChat implements INodeType {
 				noDataExpression: true,
 				displayOptions: { show: { resource: ['channel'] } },
 				options: channelOperations,
+				default: 'list',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['outgoingWebhook'] } },
+				options: outgoingWebhookOperations,
 				default: 'list',
 			},
 			{
@@ -275,7 +293,7 @@ export class SynologyChat implements INodeType {
 				],
 				default: 'private',
 				displayOptions: { show: { resource: ['channel'], operation: ['create'] } },
-				description: 'Channel type. Use Private for encrypted channels (Public fails with 422 if some users lack encryption keys)',
+				description: 'Channel type. Use Private for encrypted channels (Public fails with 422 if some users lack encryption keys).',
 			},
 			{
 				displayName: 'Encrypted Channel',
@@ -283,7 +301,73 @@ export class SynologyChat implements INodeType {
 				type: 'boolean',
 				default: false,
 				displayOptions: { show: { resource: ['channel'], operation: ['create'] } },
-				description: 'Create an end-to-end encrypted channel. Requires the user to have enabled Encryption in Chat (Profile → Settings) so a keypair exists (otherwise the NAS returns 408 keypair not exist)',
+				description: 'Whether to create an end-to-end encrypted channel. Requires the user to have enabled Encryption in Chat (Profile → Settings) so a keypair exists (otherwise the NAS returns 408 keypair not exist).',
+			},
+			// --- Outgoing Webhook: Create ---
+			{
+				displayName: 'Channel ID',
+				name: 'owChannelId',
+				type: 'number',
+				default: 0,
+				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['create'] } },
+				description: 'Channel the webhook listens on. 0 = any channel (then trigger word is required).',
+			},
+			{
+				displayName: 'Trigger Word',
+				name: 'owTriggerWord',
+				type: 'string',
+				default: '',
+				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['create'] } },
+				description: 'Whether messages starting with this word trigger the webhook. Empty = all messages (if channel is set).',
+			},
+			{
+				displayName: 'Destination URL',
+				name: 'owUrl',
+				type: 'string',
+				required: true,
+				default: '',
+				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['create'] } },
+				description: 'URL that Chat POSTs to when the webhook fires (e.g. your n8n Webhook Trigger URL)',
+			},
+			{
+				displayName: 'Nickname',
+				name: 'owNickname',
+				type: 'string',
+				default: '',
+				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['create'] } },
+				description: 'Bot nickname shown in Chat',
+			},
+			// --- Outgoing Webhook: Get/Set/Delete ---
+			{
+				displayName: 'Bot User ID',
+				name: 'owUserId',
+				type: 'number',
+				required: true,
+				default: 0,
+				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['get', 'set', 'delete'] } },
+				description: 'Bot user ID of the outgoing webhook (from List)',
+			},
+			{
+				displayName: 'Channel ID',
+				name: 'owSetChannelId',
+				type: 'number',
+				default: 0,
+				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['set'] } },
+				description: 'New channel for the webhook (0 = any channel)',
+			},
+			{
+				displayName: 'Trigger Word',
+				name: 'owSetTriggerWord',
+				type: 'string',
+				default: '',
+				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['set'] } },
+			},
+			{
+				displayName: 'Destination URL',
+				name: 'owSetUrl',
+				type: 'string',
+				default: '',
+				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['set'] } },
 			},
 			// --- Post: List ---
 			{
@@ -394,6 +478,31 @@ export class SynologyChat implements INodeType {
 						this.getNodeParameter('chType', i, 'private') as 'public' | 'private',
 						this.getNodeParameter('chEncrypted', i, false) as boolean,
 					);
+				}
+			} else if (resource === 'outgoingWebhook') {
+				if (operation === 'create') {
+					const created = await chat.createOutgoingWebhook();
+					await chat.setOutgoingWebhook(
+						created.user_id,
+						this.getNodeParameter('owChannelId', i, 0) as number,
+						(this.getNodeParameter('owTriggerWord', i, '') as string) || undefined || '',
+						this.getNodeParameter('owUrl', i) as string,
+						(this.getNodeParameter('owNickname', i, '') as string) || undefined,
+					);
+					data = created as unknown as IDataObject;
+				} else if (operation === 'list') {
+					data = await chat.listOutgoingWebhooks() as unknown as IDataObject;
+				} else if (operation === 'get') {
+					data = await chat.getOutgoingWebhook(this.getNodeParameter('owUserId', i) as number);
+				} else if (operation === 'set') {
+					data = await chat.setOutgoingWebhook(
+						this.getNodeParameter('owUserId', i) as number,
+						this.getNodeParameter('owSetChannelId', i, 0) as number,
+						this.getNodeParameter('owSetTriggerWord', i, '') as string,
+						this.getNodeParameter('owSetUrl', i) as string,
+					);
+				} else if (operation === 'delete') {
+					data = await chat.deleteBot(this.getNodeParameter('owUserId', i) as number);
 				}
 			} else if (resource === 'post' && operation === 'list') {
 				data = await chat.listPosts({

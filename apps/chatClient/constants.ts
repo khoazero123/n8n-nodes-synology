@@ -6,6 +6,7 @@ export const CHAT_SESSION = 'Chat';
 /** API namespaces used by the Chat package (webapi/entry.cgi). */
 export const CHAT_EXTERNAL_API = 'SYNO.Chat.External';
 export const CHAT_WEBHOOK_INCOMING_API = 'SYNO.Chat.Webhook.Incoming';
+export const CHAT_WEBHOOK_OUTGOING_API = 'SYNO.Chat.Webhook.Outgoing';
 export const CHAT_CHATBOT_API = 'SYNO.Chat.Chatbot';
 export const CHAT_BOT_API = 'SYNO.Chat.Bot';
 export const CHAT_CHANNEL_API = 'SYNO.Chat.Channel';

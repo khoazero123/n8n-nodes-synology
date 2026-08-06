@@ -14,6 +14,7 @@ import {
 	CHAT_SESSION,
 	CHAT_WEBHOOK_API_VERSION,
 	CHAT_WEBHOOK_INCOMING_API,
+	CHAT_WEBHOOK_OUTGOING_API,
 } from './constants';
 import type {
 	Chatbot,
@@ -134,6 +135,58 @@ export class ChatClient {
 			method: 'set',
 			session: CHAT_SESSION,
 			params,
+		});
+	}
+
+	/**
+	 * Create an outgoing webhook (bound later via setOutgoingWebhook).
+	 * Returns {token, user_id}.
+	 */
+	async createOutgoingWebhook(): Promise<{ token: string; user_id: number }> {
+		return await this.synology.request<IDataObject>({
+			api: CHAT_WEBHOOK_OUTGOING_API,
+			version: CHAT_WEBHOOK_API_VERSION,
+			method: 'create',
+			session: CHAT_SESSION,
+			params: {},
+		}) as unknown as { token: string; user_id: number };
+	}
+
+	/** Configure an outgoing webhook: channel (0 = any), trigger word, destination URL. */
+	async setOutgoingWebhook(userId: number, channelId: number, triggerWord: string, url: string, nickname?: string): Promise<IDataObject> {
+		await this.synology.request({
+			api: CHAT_WEBHOOK_OUTGOING_API,
+			version: CHAT_WEBHOOK_API_VERSION,
+			method: 'set',
+			session: CHAT_SESSION,
+			params: { user_id: userId, channel_id: channelId, trigger_word: triggerWord, url },
+		});
+		if (nickname) {
+			await this.setBotProfile(userId, nickname);
+		}
+		return { success: true };
+	}
+
+	/** List outgoing webhooks (session required). */
+	async listOutgoingWebhooks(): Promise<IDataObject[]> {
+		const data = await this.synology.request<IDataObject>({
+			api: CHAT_WEBHOOK_OUTGOING_API,
+			version: CHAT_WEBHOOK_API_VERSION,
+			method: 'list',
+			session: CHAT_SESSION,
+			params: {},
+		}) as unknown as { webhook_outgoings: IDataObject[] };
+		return data.webhook_outgoings ?? [];
+	}
+
+	/** Get an outgoing webhook by bot user id (returns token). */
+	async getOutgoingWebhook(userId: number): Promise<IDataObject> {
+		return await this.synology.request<IDataObject>({
+			api: CHAT_WEBHOOK_OUTGOING_API,
+			version: CHAT_WEBHOOK_API_VERSION,
+			method: 'get',
+			session: CHAT_SESSION,
+			params: { user_id: userId },
 		});
 	}
 

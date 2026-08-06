@@ -80,6 +80,27 @@ export class SynologyMailTrigger implements INodeType {
 				description: 'Filter by read status (client-side filter on thread.unread)',
 			},
 			{
+				displayName: 'Starred Only',
+				name: 'starredOnly',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to only emit starred emails',
+			},
+			{
+				displayName: 'Has Attachment Only',
+				name: 'hasAttachmentOnly',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to only emit emails with attachments',
+			},
+			{
+				displayName: 'Label',
+				name: 'label',
+				type: 'string',
+				default: '',
+				description: 'Only emit emails with this label (label name or numeric ID)',
+			},
+			{
 				displayName: 'Max Threads Per Poll',
 				name: 'maxThreads',
 				type: 'number',
@@ -97,8 +118,11 @@ export class SynologyMailTrigger implements INodeType {
 		const mailbox = this.getNodeParameter('mailbox', 'inbox') as string;
 		const keyword = this.getNodeParameter('keyword', '') as string;
 		const from = this.getNodeParameter('from', '') as string;
+		const label = this.getNodeParameter('label', '') as string;
 		const unreadOnly = this.getNodeParameter('unreadOnly', false) as boolean;
 		const readStatus = this.getNodeParameter('readStatus', 'both') as string;
+		const starredOnly = this.getNodeParameter('starredOnly', false) as boolean;
+		const hasAttachmentOnly = this.getNodeParameter('hasAttachmentOnly', false) as boolean;
 		const maxThreads = this.getNodeParameter('maxThreads', 50) as number;
 		const mailboxId = MAILBOX_ID_MAP[mailbox];
 
@@ -108,6 +132,7 @@ export class SynologyMailTrigger implements INodeType {
 			limit: maxThreads,
 			keyword: keyword || undefined,
 			from: from || undefined,
+			label: label || undefined,
 		});
 
 		const staticData = this.getWorkflowStaticData('global');
@@ -115,19 +140,31 @@ export class SynologyMailTrigger implements INodeType {
 		const seenIds = new Set<number>(Array.isArray(staticData[seenKey]) ? staticData[seenKey] as number[] : []);
 		const now = Date.now();
 
-		// Client-side filters: unread/read status (server does not filter these reliably)
+		// Client-side filters: unread/read status, starred, has attachment
+		const toBool = (v: unknown): boolean => v === 1 || v === true || v === '1' || v === 'true';
 		const filterRead = (unread: unknown): boolean => {
 			if (readStatus === 'both' && !unreadOnly) return true;
-			const isUnread = unread === 1 || unread === true || unread === '1' || unread === 'true';
+			const isUnread = toBool(unread);
 			if (unreadOnly || readStatus === 'unread') return isUnread;
 			if (readStatus === 'read') return !isUnread;
 			return true;
+		};
+		const filterStarred = (thread: { star?: unknown; starred?: unknown }): boolean => {
+			if (!starredOnly) return true;
+			return toBool(thread.star) || toBool(thread.starred);
+		};
+		const filterAttachment = (thread: { message?: Array<{ attachment?: unknown }>; has_attachment?: unknown }): boolean => {
+			if (!hasAttachmentOnly) return true;
+			if (toBool(thread.has_attachment)) return true;
+			return (thread.message ?? []).some((m) => Array.isArray(m.attachment) && m.attachment.length > 0);
 		};
 
 		// New threads = not in seen set, matching read filters. Sort newest first, cap by limit.
 		const newThreads = (threads.thread ?? [])
 			.filter((t) => !seenIds.has(t.id))
 			.filter((t) => filterRead(t.unread))
+			.filter((t) => filterStarred(t as never))
+			.filter((t) => filterAttachment(t as never))
 			.slice(0, maxThreads);
 
 		// Persist all current thread ids so they are not re-emitted next poll.

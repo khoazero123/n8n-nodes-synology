@@ -78,7 +78,15 @@ Params (filters tham khảo Gmail trigger n8n core):
 - **Search Keyword**: lọc thread theo keyword (server-side)
 - **From (Sender)**: chỉ emit mail từ sender — server-side qua condition `from` (verified)
 - **Unread Only** / **Read Status** (both/unread/read): client-side filter trên `thread.unread`
+- **Starred Only**: client-side trên `thread.star`
+- **Has Attachment Only**: client-side trên `thread.has_attachment` / message.attachment
+- **Label**: server-side condition `label` (dùng **numeric label ID**, không phải tên) — verified
 - **Max Threads Per Poll**: default 50
+
+Verified 2026-08-06 (E2E `test/e2e-mailtrigger-filters.js`): mỗi filter emit đúng mail mục tiêu —
+from ✅, unreadOnly ✅, readStatus ✅, starredOnly ✅, hasAttachmentOnly ✅, label ✅.
+**Bug đã fix:** condition push phải trước `JSON.stringify(condition)` (from/label không được gửi nếu push sau).
+Label create: `background_color` + `text_color` = hex **không có `#`** (vd `ff0000`). set_star: `star=1/0` (số).
 
 Lưu ý dedup: static data (`mailSeen_<mailbox>`) persist giữa các poll khi workflow ACTIVE.
 Manual trigger run trong n8n KHÔNG chia sẻ static data → mỗi manual run coi tất cả thread là mới.

@@ -52,6 +52,8 @@ export class MailClientClient {
 	/** List threads in a mailbox. */
 	async listThreads(input: ListThreadsInput): Promise<{ total: number; thread: ThreadSummary[] }> {
 		const condition = [{ name: 'mailbox', value: String(input.mailboxId) }];
+		if (input.from) condition.push({ name: 'from', value: input.from });
+		if (input.label) condition.push({ name: 'label', value: input.label });
 		const params: IDataObject = {
 			condition: JSON.stringify(condition),
 			offset: input.offset ?? 0,
@@ -60,7 +62,6 @@ export class MailClientClient {
 			conversation_view: true,
 		};
 		if (input.keyword) params.keyword = input.keyword;
-		if (input.from) condition.push({ name: 'from', value: input.from });
 
 		return await this.synology.requestPath({
 			api: MAIL_THREAD_API,

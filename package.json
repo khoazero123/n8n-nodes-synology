@@ -40,7 +40,9 @@
     "test:e2e:ds:direct": "python3 test/e2e-download-station-core.py",
     "test:e2e:ds:n8n": "node test/e2e-download-station-n8n.js",
     "test:e2e": "npm run test:e2e:drive:direct && npm run test:e2e:drive:n8n && npm run test:e2e:n8n && npm run test:e2e:n8n:notestation:expanded",
-    "test:e2e:mail:n8n": "node test/e2e-mailclient-n8n.js"
+    "test:e2e:mail:n8n": "node test/e2e-mailclient-n8n.js",
+    "test:e2e:mail:trigger": "node test/e2e-mailtrigger-n8n.js",
+    "test:e2e:mail:filters": "node test/e2e-mailtrigger-filters.js"
   },
   "files": [
     "dist"

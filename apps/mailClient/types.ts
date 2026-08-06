@@ -75,6 +75,7 @@ export interface ListThreadsInput {
 	additional?: string[];
 	keyword?: string;
 	from?: string;
+	label?: string;
 }
 
 export interface GetMessageInput {

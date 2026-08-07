@@ -118,7 +118,7 @@ async function main() {
 				allowUnauthorizedCerts: process.env.SYNO_ALLOW_UNAUTHORIZED_CERTS !== 'false',
 			},
 		});
-		const type = 'CUSTOM.synologyMailClient';
+		const type = 'CUSTOM.synologyMailPlusClient';
 		const c = { synologyApi: { id: credential.json.data.id, name: credential.json.data.name } };
 		const nodes = [
 			{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },

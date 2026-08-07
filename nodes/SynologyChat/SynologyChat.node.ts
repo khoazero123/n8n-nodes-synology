@@ -142,9 +142,10 @@ export class SynologyChat implements INodeType {
 				description: 'Send to a channel or as a direct message to a user',
 			},
 			{
-				displayName: 'Channel',
+				displayName: 'Channel Name or ID',
 				name: 'sendChannelId',
 				type: 'options',
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 				required: true,
 				default: '',
 				typeOptions: {
@@ -176,7 +177,7 @@ export class SynologyChat implements INodeType {
 			},
 			// --- Webhook: Create ---
 			{
-				displayName: 'Channel',
+				displayName: 'Channel Name or ID',
 				name: 'whChannelId',
 				type: 'options',
 				required: true,
@@ -185,7 +186,7 @@ export class SynologyChat implements INodeType {
 					loadOptionsMethod: 'getChannels',
 				},
 				displayOptions: { show: { resource: ['webhook'], operation: ['create'] } },
-				description: 'Channel the webhook will post into',
+				description: 'Channel the webhook will post into. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Nickname',
@@ -207,7 +208,7 @@ export class SynologyChat implements INodeType {
 				description: 'Bot user ID of the webhook (from List)',
 			},
 			{
-				displayName: 'Channel',
+				displayName: 'Channel Name or ID',
 				name: 'whSetChannelId',
 				type: 'options',
 				default: 0,
@@ -215,7 +216,7 @@ export class SynologyChat implements INodeType {
 					loadOptionsMethod: 'getChannelsOptional',
 				},
 				displayOptions: { show: { resource: ['webhook'], operation: ['set'] } },
-				description: 'New channel for the webhook',
+				description: 'New channel for the webhook. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Nickname',
@@ -260,9 +261,10 @@ export class SynologyChat implements INodeType {
 			},
 			// --- Channel: Get/Create ---
 			{
-				displayName: 'Channel',
+				displayName: 'Channel Name or ID',
 				name: 'chChannelId',
 				type: 'options',
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 				required: true,
 				default: '',
 				typeOptions: {
@@ -315,7 +317,7 @@ export class SynologyChat implements INodeType {
 			},
 			// --- Outgoing Webhook: Create ---
 			{
-				displayName: 'Channel',
+				displayName: 'Channel Name or ID',
 				name: 'owChannelId',
 				type: 'options',
 				default: 0,
@@ -323,7 +325,7 @@ export class SynologyChat implements INodeType {
 					loadOptionsMethod: 'getChannelsWithAny',
 				},
 				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['create'] } },
-				description: 'Channel the webhook listens on. Any Channel = listen on all channels (then trigger word is required).',
+				description: 'Channel the webhook listens on. Any Channel = listen on all channels (then trigger word is required). Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Trigger Word',
@@ -361,7 +363,7 @@ export class SynologyChat implements INodeType {
 				description: 'Bot user ID of the outgoing webhook (from List)',
 			},
 			{
-				displayName: 'Channel',
+				displayName: 'Channel Name or ID',
 				name: 'owSetChannelId',
 				type: 'options',
 				default: 0,
@@ -369,7 +371,7 @@ export class SynologyChat implements INodeType {
 					loadOptionsMethod: 'getChannelsWithAny',
 				},
 				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['set'] } },
-				description: 'New channel for the webhook (Any Channel = any channel)',
+				description: 'New channel for the webhook (Any Channel = any channel). Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Trigger Word',
@@ -377,7 +379,7 @@ export class SynologyChat implements INodeType {
 				type: 'string',
 				default: '',
 				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['set'] } },
-				description: 'Required when Channel is Any Channel.',
+				description: 'Required when Channel is Any Channel',
 			},
 			{
 				displayName: 'Destination URL',

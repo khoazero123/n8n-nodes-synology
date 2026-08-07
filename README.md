@@ -34,7 +34,7 @@ Drive uses a separate Drive session internally and handles the required `id` and
 
 ### Synology MailPlus
 
-`Synology MailPlus` provides MailPlus operations. `Synology MailPlus Trigger` is a polling trigger for new mailbox threads (same package, `nodes/SynologyMailClient/`).
+`Synology MailPlus` provides MailPlus operations. `Synology MailPlus Trigger` is a polling trigger for new mailbox threads (same package, `nodes/SynologyMailPlusClient/`).
 
 Trigger options include:
 

@@ -121,7 +121,7 @@ print("sent")
 			data: { baseUrl: process.env.SYNO_BASE_URL, username: process.env.SYNO_ACCOUNT, password: process.env.SYNO_PASS, allowUnauthorizedCerts: true },
 		}, authHeaders);
 		const credId = credential.json?.data?.id;
-		const type = 'CUSTOM.synologyMailClient';
+		const type = 'CUSTOM.synologyMailPlusClient';
 		const c = { synologyApi: { id: credId, name: 'x' } };
 		const MT = { name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} };
 

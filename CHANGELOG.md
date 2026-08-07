@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **BREAKING:** Rename MailPlus node class `SynologyMailClient` →
+  `SynologyMailPlusClient` and internal names `synologyMailClient` /
+  `synologyMailClientTrigger` → `synologyMailPlusClient` /
+  `synologyMailPlusClientTrigger`. Existing workflows must re-add the
+  node or update node type references.
+
 ## [0.1.5] - 2026-08-06
 
 ### Changed
@@ -70,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Added
-- Synology MailPlus `SynologyMailClient`: 14 extended operations (all
+- Synology MailPlus `SynologyMailPlusClient`: 14 extended operations (all
   verified live via E2E against a DSM 7 NAS):
   - Message: Mark Read / Unread, Star / Unstar, Move.
   - Thread: Mark Read / Unread, Add / Remove Label, Move, Delete.

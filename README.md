@@ -54,8 +54,9 @@ The trigger tracks previously seen thread IDs in workflow static data and emits 
 
 `Synology Chat` supports:
 
-- Send messages through incoming webhook or chatbot tokens
-- List channels, users, and posts
+- **Send a Message** as the credential DSM user to a channel or direct message
+  (session `Post.create` — same as the web client, no webhook/bot)
+- List channels, users, and posts (via bot token for external API reads)
 - Manage incoming webhooks, chatbots, and channels
 - Manage outgoing webhooks
 

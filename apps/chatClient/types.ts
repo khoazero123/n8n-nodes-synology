@@ -38,6 +38,19 @@ export interface ChatChannel {
 	channel_id: number;
 	name?: string;
 	type?: string;
+	members?: unknown[];
+}
+
+export interface ChatUser {
+	[prop: string]: unknown;
+	user_id: number;
+	username?: string;
+	nickname?: string;
+	type?: string;
+	user_props?: {
+		email?: string;
+		description?: string;
+	};
 }
 
 export interface ChatPost {
@@ -77,3 +90,6 @@ export interface ListPostsInput {
 	offset?: number;
 	limit?: number;
 }
+
+/** Post type for Post.create v5 (matches Chat UI POST_TYPE.normal). */
+export const CHAT_POST_TYPE_NORMAL = 'normal';

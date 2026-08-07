@@ -2,6 +2,8 @@ import type { IDataObject } from 'n8n-workflow';
 import {
 	CHAT_BOT_API,
 	CHAT_BOT_API_VERSION,
+	CHAT_CHANNEL_ANONYMOUS_API,
+	CHAT_CHANNEL_ANONYMOUS_API_VERSION,
 	CHAT_CHANNEL_API,
 	CHAT_CHANNEL_API_VERSION,
 	CHAT_CHANNEL_NAMED_API,
@@ -20,12 +22,14 @@ import type {
 	Chatbot,
 	ChatChannel,
 	ChatPost,
+	ChatUser,
 	CreateChatbotInput,
 	CreateWebhookInput,
 	IncomingWebhook,
 	ListPostsInput,
 	SendMessageInput,
 } from './types';
+import { CHAT_POST_TYPE_NORMAL } from './types';
 import type { SynologyClient } from '../../transport/SynologyClient';
 
 /**
@@ -382,5 +386,64 @@ export class ChatClient {
 			session: CHAT_SESSION,
 			params,
 		}) as unknown as { posts: ChatPost[]; total?: number };
+	}
+
+	/**
+	 * Send a message to a channel as the logged-in DSM user.
+	 *
+	 * Uses the session API SYNO.Chat.Post.create (v5) exactly like the web
+	 * client does — no incoming webhook token and no bot are involved, so the
+	 * post appears as a normal user message (verified live 2026-08-07).
+	 */
+	async sendAsUser(channelId: number, message: string): Promise<IDataObject> {
+		return await this.synology.request<IDataObject>({
+			api: CHAT_POST_API,
+			version: CHAT_POST_API_VERSION,
+			method: 'create',
+			session: CHAT_SESSION,
+			params: {
+				channel_id: channelId,
+				type: CHAT_POST_TYPE_NORMAL,
+				message,
+				conn_id: `n8n-${Date.now().toString(16)}`,
+				is_thread: 'false',
+			},
+		});
+	}
+
+	/**
+	 * Resolve the 1-to-1 (direct message) channel between the logged-in user
+	 * and another user. Returns the existing anonymous channel when present,
+	 * otherwise creates it via SYNO.Chat.Channel.Anonymous.initiate (v2) with
+	 * the full member list, matching the web client behaviour.
+	 */
+	async resolveDirectChannel(targetUserId: number): Promise<ChatChannel> {
+		const channels = await this.listChannels();
+		const existing = channels.find((channel) => {
+			const members = Array.isArray(channel.members) ? (channel.members as unknown[]).map(Number) : [];
+			return channel.type === 'anonymous' && members.includes(targetUserId) && members.length === 2;
+		});
+		if (existing) return existing;
+
+		const created = await this.synology.request<IDataObject>({
+			api: CHAT_CHANNEL_ANONYMOUS_API,
+			version: CHAT_CHANNEL_ANONYMOUS_API_VERSION,
+			method: 'initiate',
+			session: CHAT_SESSION,
+			params: { user_ids: [targetUserId], encrypted: false },
+		}) as unknown as ChatChannel;
+		return created;
+	}
+
+	/** List users (session required). */
+	async listUsers(): Promise<ChatUser[]> {
+		const data = await this.synology.request<IDataObject>({
+			api: 'SYNO.Chat.User',
+			version: 2,
+			method: 'list',
+			session: CHAT_SESSION,
+			params: {},
+		}) as unknown as { users: ChatUser[] };
+		return data.users ?? [];
 	}
 }

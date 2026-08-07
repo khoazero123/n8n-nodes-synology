@@ -25,12 +25,8 @@
 	},
 	"scripts": {
 		"build": "n8n-node build && node scripts/bundle.mjs",
-		"build:dev": "npm run build && node scripts/n8n-reload.mjs reload",
 		"build:watch": "tsc --watch",
 		"dev": "n8n-node dev",
-		"n8n:start": "node scripts/n8n-reload.mjs start",
-		"n8n:reload": "node scripts/n8n-reload.mjs reload",
-		"n8n:stop": "node scripts/n8n-reload.mjs stop",
 		"lint": "n8n-node lint",
 		"lint:fix": "n8n-node lint --fix",
 		"release": "n8n-node release",

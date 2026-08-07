@@ -124,10 +124,10 @@ async function main() {
 }
 
 async function testFilter(authHeaders, credId, extraParams, expectedSubject, label) {
-	const type = 'CUSTOM.synologyMailTrigger';
+	const type = 'CUSTOM.synologyMailClient';
 	const triggerNode = {
 		name: 'Mail Trigger', type, typeVersion: 1, position: [0, 0],
-		parameters: { mailbox: 'inbox', keyword: '', maxThreads: 100, ...extraParams },
+		parameters: { triggerMailbox: 'inbox', triggerKeyword: '', maxThreads: 100, ...extraParams },
 		credentials: { synologyApi: { id: credId, name: 'x' } },
 	};
 	const wf = await request('POST', '/rest/workflows', {

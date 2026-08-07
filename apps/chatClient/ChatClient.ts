@@ -164,6 +164,7 @@ export class ChatClient {
 		if (nickname) {
 			await this.setBotProfile(userId, nickname);
 		}
+		await this.enableBot(userId);
 		return { success: true };
 	}
 
@@ -230,6 +231,17 @@ export class ChatClient {
 			api: CHAT_BOT_API,
 			version: CHAT_BOT_API_VERSION,
 			method: 'enable',
+			session: CHAT_SESSION,
+			params: { user_id: userId },
+		});
+	}
+
+	/** Disable a bot without deleting it (used when republishing workflows). */
+	async disableBot(userId: number): Promise<IDataObject> {
+		return await this.synology.request({
+			api: CHAT_BOT_API,
+			version: CHAT_BOT_API_VERSION,
+			method: 'disable',
 			session: CHAT_SESSION,
 			params: { user_id: userId },
 		});

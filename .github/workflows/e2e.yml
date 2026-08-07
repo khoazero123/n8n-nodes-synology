@@ -188,3 +188,12 @@ jobs:
       - name: Stop Docker n8n
         if: always()
         run: docker rm -f n8n-synology-e2e || true
+
+      # Docker container (root/node uid) creates files under .e2e-n8n that the
+      # runner user cannot remove; clean with sudo so the next job's workspace
+      # reset doesn't fail with EACCES.
+      - name: Clean up E2E workspace (root-owned files)
+        if: always()
+        run: |
+          sudo rm -rf .e2e-n8n
+          sudo rm -rf /tmp/scan-local || true

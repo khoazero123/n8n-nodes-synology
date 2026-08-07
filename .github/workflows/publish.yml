@@ -16,7 +16,9 @@ jobs:
 
   publish:
     needs: e2e
-    runs-on: self-hosted
+    # npm publish --provenance only supports GitHub-hosted runners (E422 on self-hosted).
+    # E2E stays on self-hosted (LAN access to NAS); publishing runs on GitHub-hosted.
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4

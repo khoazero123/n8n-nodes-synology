@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 /* Synology MailPlus Trigger filter E2E: verify each filter emits only matching mail. */
  
-const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
-
 
 const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-mail-filter-e2e@example.com';

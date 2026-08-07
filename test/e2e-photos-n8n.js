@@ -9,7 +9,6 @@
  * 6. Search.
  * Cleanup workflows/credentials.
  */
-const fs = require('fs');
 const http = require('http');
 const { URL } = require('url');
 

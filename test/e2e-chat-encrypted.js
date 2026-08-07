@@ -6,7 +6,6 @@
  * 3. Delete the channel (via Session cleanup SQL or API).
  * Reuses the harness from e2e-chat-n8n.js.
  */
-const fs = require('fs');
 const http = require('http');
 const { URL } = require('url');
 const { execSync } = require('child_process');

@@ -13,12 +13,9 @@
  * Env: SYNO_BASE_URL, SYNO_ACCOUNT, SYNO_PASS, N8N_BASE_URL (default
  * http://localhost:5680), N8N_OWNER_EMAIL, N8N_OWNER_PASSWORD.
  */
-const fs = require('fs');
-const path = require('path');
 const http = require('http');
 const { URL } = require('url');
 
-// --- env ---
 process.env.N8N_BASE_URL = process.env.N8N_BASE_URL || 'http://localhost:5680';
 process.env.N8N_OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'admin@example.com';
 

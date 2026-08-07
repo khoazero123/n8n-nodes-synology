@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 /* Synology Chat Trigger n8n E2E: activation registers webhook, filters, and emits. */
  
-const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
-
 
 const BASE_URL = process.env.N8N_BASE_URL || 'http://127.0.0.1:5680';
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-chat-trigger-e2e@example.com';

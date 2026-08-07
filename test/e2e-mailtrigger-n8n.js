@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 /* Synology MailPlus Trigger n8n E2E: send a test email, activate poll trigger, verify emission. */
  
-const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
-
 
 const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-mail-trigger-e2e@example.com';

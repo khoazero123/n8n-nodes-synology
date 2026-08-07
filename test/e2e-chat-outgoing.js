@@ -3,7 +3,6 @@
  * E2E: outgoing webhook CRUD via SynologyChat node.
  * Create -> List -> Get -> Set -> Delete, cleanup.
  */
-const fs = require('fs');
 const http = require('http');
 const { URL } = require('url');
 

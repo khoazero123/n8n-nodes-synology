@@ -5,6 +5,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
+import { NodeConnectionTypes } from 'n8n-workflow';
 import { PhotoClient } from '../../apps/photoClient/PhotoClient';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
@@ -37,9 +38,9 @@ export class SynologyPhotos implements INodeType {
 		description: 'Work with Synology Photos: list albums and photos, download originals and thumbnails, search',
 		defaults: { name: 'Synology Photos' },
 		// eslint-disable-next-line
-		inputs: ['main'],
+		inputs: [NodeConnectionTypes.Main],
 		// eslint-disable-next-line
-		outputs: ['main'],
+		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,
 		properties: [

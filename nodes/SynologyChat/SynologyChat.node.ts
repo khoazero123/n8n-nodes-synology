@@ -10,6 +10,7 @@ import type {
 import { NodeConnectionTypes } from 'n8n-workflow';
 import { ChatClient } from '../../apps/chatClient/ChatClient';
 import { buildChannelOptions } from '../../apps/chatClient/channelLoadOptions';
+import { ensureIncomingWebhookToken } from '../../apps/chatClient/incomingWebhookUtils';
 import { assertTriggerWordForAnyChannel } from '../../apps/chatClient/outgoingWebhookUtils';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
@@ -41,6 +42,7 @@ const channelOperations = [
 	{ name: 'List', value: 'list', action: 'List channels' },
 	{ name: 'Get', value: 'get', action: 'Get a channel by id' },
 	{ name: 'Create', value: 'create', action: 'Create a named channel' },
+	{ name: 'Send a Message to Channel', value: 'sendMessage', action: 'Send a message to a channel' },
 ];
 
 const postOperations = [
@@ -292,7 +294,32 @@ export class SynologyChat implements INodeType {
 				typeOptions: {
 					loadOptionsMethod: 'getChannels',
 				},
-				displayOptions: { show: { resource: ['channel'], operation: ['get'] } },
+				displayOptions: { show: { resource: ['channel'], operation: ['get', 'sendMessage'] } },
+			},
+			{
+				displayName: 'Text',
+				name: 'chSendText',
+				type: 'string',
+				typeOptions: { rows: 4 },
+				default: '',
+				displayOptions: { show: { resource: ['channel'], operation: ['sendMessage'] } },
+				description: 'Message text. Supports &lt;https://example.com|link text&gt; for links.',
+			},
+			{
+				displayName: 'File URL',
+				name: 'chSendFileUrl',
+				type: 'string',
+				default: '',
+				displayOptions: { show: { resource: ['channel'], operation: ['sendMessage'] } },
+				description: 'Optional URL of a file to attach (max 32 MB)',
+			},
+			{
+				displayName: 'Bot Nickname',
+				name: 'chSendNickname',
+				type: 'string',
+				default: 'n8n Synology Chat',
+				displayOptions: { show: { resource: ['channel'], operation: ['sendMessage'] } },
+				description: 'Nickname for the auto-registered incoming webhook bot shown in Chat',
 			},
 			{
 				displayName: 'Name',
@@ -527,6 +554,16 @@ export class SynologyChat implements INodeType {
 						this.getNodeParameter('chType', i, 'private') as 'public' | 'private',
 						this.getNodeParameter('chEncrypted', i, false) as boolean,
 					);
+				} else if (operation === 'sendMessage') {
+					const channelId = Number(this.getNodeParameter('chChannelId', i));
+					const nickname = (this.getNodeParameter('chSendNickname', i, 'n8n Synology Chat') as string) || 'n8n Synology Chat';
+					const staticData = this.getWorkflowStaticData('node');
+					const token = await ensureIncomingWebhookToken(chat, staticData, channelId, nickname);
+					data = await chat.sendMessage({
+						token,
+						text: (this.getNodeParameter('chSendText', i, '') as string) || undefined,
+						fileUrl: (this.getNodeParameter('chSendFileUrl', i, '') as string) || undefined,
+					});
 				}
 			} else if (resource === 'outgoingWebhook') {
 				if (operation === 'create') {

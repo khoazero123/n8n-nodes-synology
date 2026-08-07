@@ -11,6 +11,7 @@ export const CHAT_CHATBOT_API = 'SYNO.Chat.Chatbot';
 export const CHAT_BOT_API = 'SYNO.Chat.Bot';
 export const CHAT_CHANNEL_API = 'SYNO.Chat.Channel';
 export const CHAT_CHANNEL_NAMED_API = 'SYNO.Chat.Channel.Named';
+export const CHAT_CHANNEL_ANONYMOUS_API = 'SYNO.Chat.Channel.Anonymous';
 export const CHAT_POST_API = 'SYNO.Chat.Post';
 
 /** External API (token-based, no session) uses version 2. */
@@ -20,4 +21,6 @@ export const CHAT_WEBHOOK_API_VERSION = 1;
 export const CHAT_CHATBOT_API_VERSION = 1;
 export const CHAT_BOT_API_VERSION = 1;
 export const CHAT_CHANNEL_API_VERSION = 1;
-export const CHAT_POST_API_VERSION = 2;
+export const CHAT_CHANNEL_ANONYMOUS_API_VERSION = 2;
+/** Post APIs (session) use version 5. create/send verified 2026-08-07. */
+export const CHAT_POST_API_VERSION = 5;

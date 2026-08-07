@@ -55,18 +55,45 @@ Delete: `SYNO.Chat.Bot.delete` `{user_id, real_delete: true}`.
 - `SYNO.Chat.Post.delete` v2 `{post_id}` — fails with 415 "Post exceeds
   allowable delete time" for old posts (delete via SQL as fallback).
 
+## Send as a normal user (NO webhook/bot) — verified 2026-08-07
+
+Reverse-engineered from the web client (`synochat-common.js`, `Post_create`
+map entry): the browser sends chat messages through the **session** API, not
+webhook tokens. This lets the node send messages as the logged-in DSM user.
+
+- **Channel post:** `SYNO.Chat.Post.create` **v5** with
+  `{channel_id, type: "normal", message, conn_id, is_thread: 'false'}` →
+  creates the post as the session user (response includes `post_id`,
+  `creator_id`). Use string `"normal"` (not numeric `0`) — numeric `0` stores
+  as a broken system post (invisible in UI, crashes open Chat tabs).
+- **Direct message:** 1-to-1 chats are `type: "anonymous"` channels with
+  exactly 2 members. Resolve the channel with
+  `SYNO.Chat.Channel.Anonymous.initiate` **v2** `{user_ids: [<target>]}`
+  (creates the DM channel if needed, returns the existing one otherwise),
+  then `Post.create` into it.
+  - Gotcha: passing `user_ids: [self]` (single) returns 400
+    "you cannot talk to yourself"; passing the full member list
+    `[self, other]` creates the channel (`[other, self]` order → 117
+    "cannot join" — current user must be first).
+- `conn_id` can be any unique string; it is used for encryption key routing
+  and socket acks, not validated for plain-text posts.
+- Post listing on v5 returns `message` (not `text`); `post_id` is the id
+  column used by `Post.delete` v8.
+
 ## Node: SynologyChat
 
 Resources:
-- **Message**: Send (webhook token), List Channels / Users / Posts (bot token)
+- **Message**: Send a Message (as credential user to channel or DM) / List
+  Channels / Users / Posts (bot token)
 - **Webhook**: Create / List / Get / Set / Delete
 - **Chatbot**: Create / List / Get / Set / Delete
 - **Channel**: List / Get / Create
+- **User**: List
 - **Post**: List
 
-E2E: `test/e2e-chat-n8n.js` — 8/8 pass live (create webhook → send → list
-channels/posts → create/get/delete chatbot → cleanup). NAS verified clean
-after test.
+E2E: `test/e2e-chat-n8n.js` — 10/10 pass live (webhook create → **send message
+to channel** → list channels/posts → **send message to user** → create/get/delete
+chatbot → cleanup). NAS verified clean after test.
 
 ## Cleanup notes
 

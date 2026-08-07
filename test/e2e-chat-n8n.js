@@ -168,7 +168,7 @@ let globalCredId = '';
 	}
 
 	if (whToken) {
-		const nodes = [MT, { name: 'Send Msg', type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'message', operation: 'send', token: whToken, text: 'E2E chat test via node ' + Date.now() }, credentials: c() }];
+		const nodes = [MT, { name: 'Send Msg', type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'message', operation: 'send', sendTo: 'channel', sendChannelId: 2, text: 'E2E chat test via node ' + Date.now() }, credentials: c() }];
 		const s = await runWorkflow('Chat Send', nodes, connect('Manual Trigger', 'Send Msg'));
 		const n = s['Send Msg'];
 		if (n?.error) {
@@ -205,6 +205,34 @@ let globalCredId = '';
 			ok('List posts', `count=${posts.length}, latest: ${posts[0] ? String(posts[0].message).slice(0, 40) : 'none'}`);
 		} else {
 			fail('List posts', new Error(JSON.stringify(n?.json || n)));
+		}
+	}
+
+	// ============ 3b. Send to a channel as the logged-in DSM user ============
+	{
+		const nodes = [MT, { name: 'Send As User', type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'message', operation: 'send', sendTo: 'channel', sendChannelId: 2, text: 'E2E as-user channel ' + Date.now() }, credentials: c() }];
+		const s = await runWorkflow('Chat Send As User Channel', nodes, connect('Manual Trigger', 'Send As User'));
+		const n = s['Send As User'];
+		if (n?.error) {
+			fail('Send as user (channel)', new Error(n.error));
+		} else if (n?.json?.post_id) {
+			ok('Send as user (channel)', `post_id=${n.json.post_id} creator_id=${n.json.creator_id}`);
+		} else {
+			fail('Send as user (channel)', new Error(JSON.stringify(n?.json || n)));
+		}
+	}
+
+	// ============ 3c. Send a direct message as the logged-in DSM user ============
+	{
+		const nodes = [MT, { name: 'Send DM', type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'message', operation: 'send', sendTo: 'user', sendUserId: 6, text: 'E2E as-user DM ' + Date.now() }, credentials: c() }];
+		const s = await runWorkflow('Chat Send As User DM', nodes, connect('Manual Trigger', 'Send DM'));
+		const n = s['Send DM'];
+		if (n?.error) {
+			fail('Send direct message', new Error(n.error));
+		} else if (n?.json?.post_id) {
+			ok('Send direct message', `post_id=${n.json.post_id} creator_id=${n.json.creator_id}`);
+		} else {
+			fail('Send direct message', new Error(JSON.stringify(n?.json || n)));
 		}
 	}
 

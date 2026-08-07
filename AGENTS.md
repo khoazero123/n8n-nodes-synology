@@ -10,7 +10,7 @@ npm run build
 npm run lint
 ```
 
-`npm run build` runs `n8n-node build` then `node scripts/bundle.mjs` (esbuild bundles shared `apps/` and `transport/` code into each node entry).
+`npm run build` runs `n8n-node build` (TypeScript compile + static assets).
 
 ## E2E tests
 

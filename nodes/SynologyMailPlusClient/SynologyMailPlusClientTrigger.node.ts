@@ -16,7 +16,7 @@ export class SynologyMailPlusClientTrigger implements INodeType {
 		subtitle: '={{$parameter["mailbox"]}}',
 		description: 'Triggers when new mail arrives in a Synology MailPlus mailbox',
 		defaults: { name: 'Synology MailPlus Trigger' },
-		usableAsTool: false,
+		usableAsTool: true,
 		inputs: [],
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'synologyApi', required: true }],

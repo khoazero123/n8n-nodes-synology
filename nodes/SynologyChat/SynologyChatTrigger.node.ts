@@ -24,7 +24,7 @@ export class SynologyChatTrigger implements INodeType {
 		subtitle: '={{$parameter["channelId"]}}',
 		description: 'Triggers when a Synology Chat outgoing webhook receives a matching message',
 		defaults: { name: 'Synology Chat Trigger' },
-		usableAsTool: false,
+		usableAsTool: true,
 		inputs: [],
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'synologyApi', required: true }],

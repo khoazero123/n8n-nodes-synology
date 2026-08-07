@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Synology MailPlus extended operations E2E (live NAS, with cleanup). */
-/* eslint-disable no-console */
+ 
 const http = require('http');
 const crypto = require('crypto');
 
@@ -101,10 +101,10 @@ import smtplib
 from email.mime.text import MIMEText
 msg = MIMEText("ext ops e2e body")
 msg["Subject"] = "Ext Ops E2E"
-msg["From"] = "khoa@megavn.net"
-msg["To"] = "khoa@megavn.net"
-s = smtplib.SMTP("192.168.1.175", 25, timeout=10)
-s.sendmail("khoa@megavn.net", ["khoa@megavn.net"], msg.as_string())
+msg["From"] = "user@example.com"
+msg["To"] = "user@example.com"
+s = smtplib.SMTP("192.168.1.100", 25, timeout=10)
+s.sendmail("user@example.com", ["user@example.com"], msg.as_string())
 s.quit()
 print("sent")
 `;
@@ -189,7 +189,7 @@ print("sent")
 
 		// 6. Reply draft
 		{
-			const nodes = [MT, { name: 'Reply', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'draft', operation: 'reply', from: 'khoa@megavn.net', to: 'khoa@megavn.net', subject: 'Re: test', body: 'reply body', referTo: 1 }, credentials: c }];
+			const nodes = [MT, { name: 'Reply', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'draft', operation: 'reply', from: 'user@example.com', to: 'user@example.com', subject: 'Re: test', body: 'reply body', referTo: 1 }, credentials: c }];
 			const s = await runWorkflow(authHeaders, type, c, 'Reply Draft', nodes, { 'Manual Trigger': { main: [[{ node: 'Reply', type: 'main', index: 0 }]] } }, { 'Manual Trigger': [{ json: {} }] });
 			const out = s['Reply'];
 			if (out?.status === 'error') throw new Error(`Reply failed: ${out.error}`);

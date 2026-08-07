@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Synology MailPlus Trigger n8n E2E: send a test email, activate poll trigger, verify emission. */
-/* eslint-disable no-console */
+ 
 const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
@@ -81,7 +81,7 @@ async function main() {
 		const type = 'CUSTOM.synologyMailPlusClientTrigger';
 		const triggerNode = {
 			name: 'Mail Trigger', type, typeVersion: 1, position: [0, 0],
-			parameters: { mailbox: 'inbox', keyword: '', from: 'sender-filter@megavn.net', unreadOnly: false, readStatus: 'both', maxThreads: 50 },
+			parameters: { mailbox: 'inbox', keyword: '', from: 'sender-filter@example.com', unreadOnly: false, readStatus: 'both', maxThreads: 50 },
 			credentials: { synologyApi: { id: credId, name: 'x' } },
 		};
 		workflow = await request('POST', '/rest/workflows', {
@@ -199,10 +199,10 @@ import smtplib
 from email.mime.text import MIMEText
 msg = MIMEText("Trigger node test body from n8n E2E")
 msg["Subject"] = "MailPlus Trigger Test"
-msg["From"] = "sender-filter@megavn.net"
-msg["To"] = "khoa@megavn.net"
-s = smtplib.SMTP("192.168.1.175", 25, timeout=10)
-s.sendmail("sender-filter@megavn.net", ["khoa@megavn.net"], msg.as_string())
+msg["From"] = "sender-filter@example.com"
+msg["To"] = "user@example.com"
+s = smtplib.SMTP("192.168.1.100", 25, timeout=10)
+s.sendmail("sender-filter@example.com", ["user@example.com"], msg.as_string())
 s.quit()
 print("sent")
 `;

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Synology MailPlus n8n workflow E2E smoke test (live NAS, read-only + draft ops). */
-/* eslint-disable no-console */
+ 
 const http = require('http');
 const crypto = require('crypto');
 
@@ -127,7 +127,7 @@ async function main() {
 			{ name: 'Get Labels', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'label', operation: 'list' }, credentials: c },
 			{ name: 'List Threads', type, typeVersion: 1, position: [960, 0], parameters: { resource: 'thread', operation: 'list', mailbox: 'inbox', limit: 50 }, credentials: c },
 			{ name: 'Get Message', type, typeVersion: 1, position: [1200, 0], parameters: { resource: 'message', operation: 'get', messageId: '={{ $json.thread[0].message[0].id }}' }, credentials: c },
-			{ name: 'Create Draft', type, typeVersion: 1, position: [1440, 0], parameters: { resource: 'draft', operation: 'create', from: 'khoa@megavn.net', to: 'test@megavn.net', subject: 'n8n draft test', body: 'draft body' }, credentials: c },
+			{ name: 'Create Draft', type, typeVersion: 1, position: [1440, 0], parameters: { resource: 'draft', operation: 'create', from: 'user@example.com', to: 'test@example.com', subject: 'n8n draft test', body: 'draft body' }, credentials: c },
 			{ name: 'Send Draft', type, typeVersion: 1, position: [1680, 0], parameters: { resource: 'draft', operation: 'send', draftId: '={{ $json.id }}' }, credentials: c },
 		];
 		const connections = {};

@@ -96,7 +96,7 @@ async function runWorkflow(name, nodes, connections) {
 		try {
 			const sql = `SELECT encrypted FROM channels WHERE id=${channelId};`;
 			const b64 = Buffer.from(sql).toString('base64');
-			const out = execSync(`ssh -o ConnectTimeout=10 root@192.168.1.175 "echo ${b64} | base64 -d > /tmp/chat_verify.sql && su -s /bin/sh Chat -c \"psql -h /var/run/postgresql -d synochat -t -f /tmp/chat_verify.sql\" && rm -f /tmp/chat_verify.sql"`, { encoding: 'utf8' });
+			const out = execSync(`ssh -o ConnectTimeout=10 root@192.168.1.100 "echo ${b64} | base64 -d > /tmp/chat_verify.sql && su -s /bin/sh Chat -c \"psql -h /var/run/postgresql -d synochat -t -f /tmp/chat_verify.sql\" && rm -f /tmp/chat_verify.sql"`, { encoding: 'utf8' });
 			const val = out.trim().split('\n').pop().trim();
 			ok('Verify encrypted flag', `encrypted=${val}`);
 		} catch (e) {
@@ -117,7 +117,7 @@ async function runWorkflow(name, nodes, connections) {
 		} catch {}
 		// SQL cleanup via NAS
 		try {
-			const out = execSync(`ssh -o ConnectTimeout=10 root@192.168.1.175 "su -s /bin/sh Chat -c \\"psql -h /var/run/postgresql -d synochat -c \\\\\\"DELETE FROM channels WHERE id=${channelId};\\\\\\"\\""`, { encoding: 'utf8' });
+			const out = execSync(`ssh -o ConnectTimeout=10 root@192.168.1.100 "su -s /bin/sh Chat -c \\"psql -h /var/run/postgresql -d synochat -c \\\\\\"DELETE FROM channels WHERE id=${channelId};\\\\\\"\\""`, { encoding: 'utf8' });
 			ok('Cleanup channel (SQL)', out.trim().split('\n').pop());
 		} catch (e) {
 			bad('Cleanup channel (SQL)', new Error(String(e.message || e).slice(0, 200)));

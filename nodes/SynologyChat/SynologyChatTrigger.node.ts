@@ -1,5 +1,4 @@
 import type {
-	IDataObject,
 	IHookFunctions,
 	ILoadOptionsFunctions,
 	INodePropertyOptions,
@@ -22,8 +21,10 @@ export class SynologyChatTrigger implements INodeType {
 		icon: { light: 'file:SynologyChat.svg', dark: 'file:SynologyChat-dark.svg' },
 		group: ['trigger'],
 		version: 1,
+		subtitle: '={{$parameter["channelId"]}}',
 		description: 'Triggers when a Synology Chat outgoing webhook receives a matching message',
 		defaults: { name: 'Synology Chat Trigger' },
+		usableAsTool: false,
 		inputs: [],
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'synologyApi', required: true }],

@@ -5,8 +5,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
-import { NodeApiError } from 'n8n-workflow';
+import { NodeConnectionTypes, NodeApiError  } from 'n8n-workflow';
 import { MailClientClient } from '../../apps/mailClient/MailClientClient';
 import { MAILBOX_ID_MAP } from '../../apps/mailClient/constants';
 import { SynologyClient } from '../../transport/SynologyClient';
@@ -108,9 +107,9 @@ export class SynologyMailPlusClient implements INodeType {
 				},
 			],
 		},
-		// eslint-disable-next-line
+		 
 		inputs: [NodeConnectionTypes.Main],
-		// eslint-disable-next-line
+		 
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,
@@ -642,6 +641,15 @@ export class SynologyMailPlusClient implements INodeType {
 						pairedItem: { item: i },
 					});
 					continue;
+				} else if (operation === 'setRead' || operation === 'setUnread') {
+					const ids = toIdArray(this.getNodeParameter('messageIds', i));
+					data = await mc.setMessageRead({ messageIds: ids, read: operation === 'setRead' }) as unknown as IDataObject;
+				} else if (operation === 'setStar') {
+					const ids = toIdArray(this.getNodeParameter('messageIds', i));
+					data = await mc.setMessageStar({ messageIds: ids, star: this.getNodeParameter('star', i, true) as boolean }) as unknown as IDataObject;
+				} else if (operation === 'move') {
+					const ids = toIdArray(this.getNodeParameter('messageIds', i));
+					data = await mc.moveMessage({ messageIds: ids, mailboxId: this.getNodeParameter('msgMailbox', i, -6) as number }) as unknown as IDataObject;
 				}
 			} else if (resource === 'mailbox' && operation === 'list') {
 				data = await mc.listMailboxes() as unknown as IDataObject;
@@ -668,7 +676,7 @@ export class SynologyMailPlusClient implements INodeType {
 					const toRaw = this.getNodeParameter('to', i, '') as string;
 					const split = (s: string) => s.split(',').map((x) => x.trim()).filter((x) => x.length > 0);
 					data = await mc.createReplyDraft({
-						from: (this.getNodeParameter('from', i, '') as string) || 'khoa@megavn.net',
+						from: (this.getNodeParameter('from', i, '') as string) || 'user@example.com',
 						to: split(toRaw).length ? split(toRaw) : [],
 						subject: (this.getNodeParameter('subject', i, '') as string) || '',
 						body: (this.getNodeParameter('body', i, '') as string) || '',
@@ -682,17 +690,6 @@ export class SynologyMailPlusClient implements INodeType {
 					const buffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
 					const filename = (this.getNodeParameter('uploadFilename', i, '') as string) || binary.fileName || 'attachment.bin';
 					data = await mc.uploadAttachment(this.getNodeParameter('uploadDraftId', i) as number, filename, buffer) as unknown as IDataObject;
-				}
-			} else if (resource === 'message') {
-				if (operation === 'setRead' || operation === 'setUnread') {
-					const ids = toIdArray(this.getNodeParameter('messageIds', i));
-					data = await mc.setMessageRead({ messageIds: ids, read: operation === 'setRead' }) as unknown as IDataObject;
-				} else if (operation === 'setStar') {
-					const ids = toIdArray(this.getNodeParameter('messageIds', i));
-					data = await mc.setMessageStar({ messageIds: ids, star: this.getNodeParameter('star', i, true) as boolean }) as unknown as IDataObject;
-				} else if (operation === 'move') {
-					const ids = toIdArray(this.getNodeParameter('messageIds', i));
-					data = await mc.moveMessage({ messageIds: ids, mailboxId: this.getNodeParameter('msgMailbox', i, -6) as number }) as unknown as IDataObject;
 				}
 			} else if (resource === 'thread') {
 				if (operation === 'setRead' || operation === 'setUnread') {

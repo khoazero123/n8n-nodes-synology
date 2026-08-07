@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Synology Chat Trigger n8n E2E: activation registers webhook, filters, and emits. */
-/* eslint-disable no-console */
+ 
 const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');

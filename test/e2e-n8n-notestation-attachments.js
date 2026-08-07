@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Synology Note Station attachment binary n8n workflow E2E. */
-/* eslint-disable no-console */
+ 
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const http = require('http');

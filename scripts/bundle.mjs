@@ -9,11 +9,12 @@ import { join } from 'path';
 const dist = 'dist';
 const targets = [];
 
-// nodes: dist/nodes/<Name>/<Name>.node.js
+// nodes: bundle every compiled *.node.js entry, including standalone triggers.
 for (const dir of readdirSync(join(dist, 'nodes'))) {
 	const nodeDir = join(dist, 'nodes', dir);
-	const entry = join(nodeDir, `${dir}.node.js`);
-	if (existsSync(entry)) targets.push(entry);
+	for (const file of readdirSync(nodeDir)) {
+		if (file.endsWith('.node.js')) targets.push(join(nodeDir, file));
+	}
 }
 // credentials: dist/credentials/*.credentials.js
 if (existsSync(join(dist, 'credentials'))) {

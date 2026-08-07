@@ -46,6 +46,7 @@
     "test:e2e:mail:extended": "node test/e2e-mailclient-extended.js",
     "test:e2e:chat": "node test/e2e-chat-n8n.js",
     "test:e2e:chat:outgoing": "node test/e2e-chat-outgoing.js",
+    "test:e2e:chat:trigger": "node test/e2e-chat-trigger-n8n.js",
     "test:e2e:photos": "node test/e2e-photos-n8n.js"
   },
   "files": [
@@ -63,6 +64,8 @@
       "dist/nodes/SynologyDownloadStation/SynologyDownloadStation.node.js",
       "dist/nodes/SynologyMailClient/SynologyMailClient.node.js",
       "dist/nodes/SynologyChat/SynologyChat.node.js",
+      "dist/nodes/SynologyChat/SynologyChatTrigger.node.js",
+      "dist/nodes/SynologyMailTrigger/SynologyMailTrigger.node.js",
       "dist/nodes/SynologyPhotos/SynologyPhotos.node.js"
     ]
   },

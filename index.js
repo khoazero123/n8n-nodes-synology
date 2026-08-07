@@ -7,6 +7,7 @@ module.exports = {
 	SynologyDrive: require('./dist/nodes/SynologyDrive/SynologyDrive.node.js').SynologyDrive,
 	SynologyDownloadStation: require('./dist/nodes/SynologyDownloadStation/SynologyDownloadStation.node.js').SynologyDownloadStation,
 	SynologyMailClient: require('./dist/nodes/SynologyMailClient/SynologyMailClient.node.js').SynologyMailClient,
-	SynologyMailTrigger: require('./dist/nodes/SynologyMailTrigger/SynologyMailTrigger.node.js').SynologyMailTrigger,
 	SynologyChat: require('./dist/nodes/SynologyChat/SynologyChat.node.js').SynologyChat,
+	SynologyChatTrigger: require('./dist/nodes/SynologyChat/SynologyChatTrigger.node.js').SynologyChatTrigger,
+	SynologyMailTrigger: require('./dist/nodes/SynologyMailTrigger/SynologyMailTrigger.node.js').SynologyMailTrigger,
 };

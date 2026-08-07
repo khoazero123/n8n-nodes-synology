@@ -67,9 +67,9 @@
       "dist/nodes/SynologyDrive/SynologyDrive.node.js",
       "dist/nodes/SynologyDownloadStation/SynologyDownloadStation.node.js",
       "dist/nodes/SynologyMailClient/SynologyMailClient.node.js",
+      "dist/nodes/SynologyMailClient/SynologyMailTrigger.node.js",
       "dist/nodes/SynologyChat/SynologyChat.node.js",
       "dist/nodes/SynologyChat/SynologyChatTrigger.node.js",
-      "dist/nodes/SynologyMailTrigger/SynologyMailTrigger.node.js",
       "dist/nodes/SynologyPhotos/SynologyPhotos.node.js"
     ]
   },

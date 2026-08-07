@@ -97,8 +97,17 @@ export class SynologyMailClient implements INodeType {
 		group: ['input'],
 		version: 1,
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
-		description: 'Work with Synology MailPlus email: list threads and messages, read mail, manage drafts, download attachments. Can also be used as a polling trigger that fires when new email arrives.',
+		description: 'Work with Synology MailPlus email: list threads and messages, read mail, manage drafts, download attachments',
 		defaults: { name: 'Synology MailPlus' },
+		builderHint: {
+			relatedNodes: [
+				{
+					nodeType: 'n8n-nodes-synology.synologyMailClientTrigger',
+					relationHint:
+						'Use Synology MailPlus Trigger for polling new email threads instead of Schedule Trigger with manual thread listing',
+				},
+			],
+		},
 		// eslint-disable-next-line
 		inputs: [NodeConnectionTypes.Main],
 		// eslint-disable-next-line
@@ -582,8 +591,6 @@ export class SynologyMailClient implements INodeType {
 				displayOptions: { show: { resource: ['draft'], operation: ['uploadAttachment'] } },
 				description: 'Filename for the uploaded attachment (defaults to binary filename)',
 			},
-
-
 		],
 	};
 
@@ -764,5 +771,4 @@ export class SynologyMailClient implements INodeType {
 
 		return [returnData];
 	}
-
 }

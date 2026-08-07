@@ -69,9 +69,15 @@ Workflow: Get Info → Mailboxes → Labels → Threads (inbox) → Message get 
 - MailPlusServer admin APIs (66) không cover — nếu cần sau này (quản trị account/domain/security) phải dùng session admin riêng.
 
 
-## 7. Trigger Node — `Synology MailTrigger` (`synologyMailTrigger`)
+## 7. Trigger — `Synology MailPlus Trigger` (`synologyMailClientTrigger`)
 
-Polling trigger (MailPlus không có webhook push). Mỗi poll gọi `Thread.list` cho mailbox chọn, so với `staticData` (thread ids đã thấy), emit các thread mới.
+Internal name must be `synologyMailClientTrigger` so n8n merges trigger actions with
+`synologyMailClient` (strips trailing `Trigger` from the trigger name). Same pattern as
+`telegram` + `telegramTrigger`, `synologyChat` + `synologyChatTrigger`.
+
+Polling trigger in `nodes/SynologyMailClient/` (same folder as the action node, like Synology Chat).
+MailPlus has no webhook push — each poll calls `Thread.list` for the selected mailbox,
+compares against `staticData`, and emits new threads.
 
 Params (filters tham khảo Gmail trigger n8n core):
 - **Mailbox**: inbox/archived/drafts/sent/spam/trash/scheduled (default inbox)

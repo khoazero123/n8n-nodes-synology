@@ -78,10 +78,10 @@ async function main() {
 			},
 		}, authHeaders);
 		const credId = credential.json.data.id;
-		const type = 'CUSTOM.synologyMailTrigger';
+		const type = 'CUSTOM.synologyMailClientTrigger';
 		const triggerNode = {
 			name: 'Mail Trigger', type, typeVersion: 1, position: [0, 0],
-			parameters: { triggerMailbox: 'inbox', triggerKeyword: '', triggerFrom: 'sender-filter@megavn.net', unreadOnly: false, readStatus: 'both', maxThreads: 50 },
+			parameters: { mailbox: 'inbox', keyword: '', from: 'sender-filter@megavn.net', unreadOnly: false, readStatus: 'both', maxThreads: 50 },
 			credentials: { synologyApi: { id: credId, name: 'x' } },
 		};
 		workflow = await request('POST', '/rest/workflows', {

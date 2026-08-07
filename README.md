@@ -56,7 +56,7 @@ The trigger tracks previously seen thread IDs in workflow static data and emits 
 
 - **Send a Message** as the credential DSM user to a channel or direct message
   (session `Post.create` — same as the web client, no webhook/bot)
-- List channels, users, and posts (via bot token for external API reads)
+- List channels, users, and posts (session API)
 - Manage incoming webhooks, chatbots, and channels
 - Manage outgoing webhooks
 

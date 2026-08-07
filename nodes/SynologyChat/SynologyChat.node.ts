@@ -18,9 +18,6 @@ import type { SynologyCredentials } from '../../transport/types';
 
 const messageOperations = [
 	{ name: 'Send a Message', value: 'send', action: 'Send a message' },
-	{ name: 'List Channels', value: 'listChannels', action: 'List channels visible to a bot token' },
-	{ name: 'List Users', value: 'listUsers', action: 'List users visible to a bot token' },
-	{ name: 'List Posts', value: 'listPosts', action: 'List posts visible to a bot token' },
 ];
 
 const webhookOperations = [
@@ -43,18 +40,12 @@ const channelOperations = [
 	{ name: 'List', value: 'list', action: 'List channels' },
 	{ name: 'Get', value: 'get', action: 'Get a channel by id' },
 	{ name: 'Create', value: 'create', action: 'Create a named channel' },
-];
-
-const userOperations = [
-	{ name: 'List', value: 'list', action: 'List users' },
-];
-
-const postOperations = [
-	{ name: 'List', value: 'list', action: 'List posts in a channel' },
+	{ name: 'List Posts', value: 'listPosts', action: 'List posts in a channel' },
+	{ name: 'List Users', value: 'listUsers', action: 'List users' },
 ];
 
 const outgoingWebhookOperations = [
-	{ name: 'Create', value: 'create', action: 'Create an outgoing webhook (channel + trigger word + URL)' },
+	{ name: 'Create', value: 'create', action: 'Create an outgoing webhook' },
 	{ name: 'List', value: 'list', action: 'List outgoing webhooks' },
 	{ name: 'Get', value: 'get', action: 'Get an outgoing webhook including its token' },
 	{ name: 'Set', value: 'set', action: 'Update an outgoing webhook' },
@@ -69,7 +60,7 @@ export class SynologyChat implements INodeType {
 		group: ['input'],
 		version: 1,
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
-		description: 'Work with Synology Chat: send messages via webhooks, manage bots and webhooks, list channels and posts',
+		description: 'Work with Synology Chat: send messages, list channels and posts, manage bots and webhooks',
 		defaults: { name: 'Synology Chat' },
 		// eslint-disable-next-line
 		inputs: [NodeConnectionTypes.Main],
@@ -88,8 +79,6 @@ export class SynologyChat implements INodeType {
 					{ name: 'Chatbot', value: 'chatbot' },
 					{ name: 'Message', value: 'message' },
 					{ name: 'Outgoing Webhook', value: 'outgoingWebhook' },
-					{ name: 'Post', value: 'post' },
-					{ name: 'User', value: 'user' },
 					{ name: 'Webhook', value: 'webhook' },
 				],
 				default: 'message',
@@ -102,15 +91,6 @@ export class SynologyChat implements INodeType {
 				displayOptions: { show: { resource: ['message'] } },
 				options: messageOperations,
 				default: 'send',
-			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: { show: { resource: ['user'] } },
-				options: userOperations,
-				default: 'list',
 			},
 			{
 				displayName: 'Operation',
@@ -146,15 +126,6 @@ export class SynologyChat implements INodeType {
 				noDataExpression: true,
 				displayOptions: { show: { resource: ['outgoingWebhook'] } },
 				options: outgoingWebhookOperations,
-				default: 'list',
-			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: { show: { resource: ['post'] } },
-				options: postOperations,
 				default: 'list',
 			},
 			// --- Message: Send ---
@@ -202,38 +173,6 @@ export class SynologyChat implements INodeType {
 				default: '',
 				displayOptions: { show: { resource: ['message'], operation: ['send'] } },
 				description: 'Message text. Supports &lt;https://example.com|link text&gt; for links.',
-			},
-			// --- Message: List (bot token) ---
-			{
-				displayName: 'Webhook Token',
-				name: 'token',
-				type: 'string',
-				typeOptions: { password: true },
-				required: true,
-				default: '',
-				displayOptions: { show: { resource: ['message'], operation: ['listChannels', 'listUsers', 'listPosts'] } },
-				description: 'Incoming webhook or chatbot token (created in Chat → Profile → Integration)',
-			},
-			{
-				displayName: 'Channel',
-				name: 'channelId',
-				type: 'options',
-				required: true,
-				default: '',
-				typeOptions: {
-					loadOptionsMethod: 'getChannels',
-				},
-				displayOptions: { show: { resource: ['message'], operation: ['listPosts'] } },
-				description: 'Channel to read posts from',
-			},
-			{
-				displayName: 'Limit',
-				name: 'limit',
-				type: 'number',
-				description: 'Max number of results to return',
-				typeOptions: { minValue: 1 },
-				default: 50,
-				displayOptions: { show: { resource: ['message'], operation: ['listPosts'] } },
 			},
 			// --- Webhook: Create ---
 			{
@@ -329,7 +268,22 @@ export class SynologyChat implements INodeType {
 				typeOptions: {
 					loadOptionsMethod: 'getChannels',
 				},
-				displayOptions: { show: { resource: ['channel'], operation: ['get'] } },
+				displayOptions: { show: { resource: ['channel'], operation: ['get', 'listPosts'] } },
+			},
+			{
+				displayName: 'Limit',
+				name: 'chPostLimit',
+				type: 'number',
+				typeOptions: { minValue: 1 },
+				default: 50,
+				displayOptions: { show: { resource: ['channel'], operation: ['listPosts'] } },
+			},
+			{
+				displayName: 'Offset',
+				name: 'chPostOffset',
+				type: 'number',
+				default: 0,
+				displayOptions: { show: { resource: ['channel'], operation: ['listPosts'] } },
 			},
 			{
 				displayName: 'Name',
@@ -432,33 +386,6 @@ export class SynologyChat implements INodeType {
 				default: '',
 				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['set'] } },
 			},
-			// --- Post: List ---
-			{
-				displayName: 'Channel',
-				name: 'postChannelId',
-				type: 'options',
-				required: true,
-				default: '',
-				typeOptions: {
-					loadOptionsMethod: 'getChannels',
-				},
-				displayOptions: { show: { resource: ['post'], operation: ['list'] } },
-			},
-			{
-				displayName: 'Limit',
-				name: 'postLimit',
-				type: 'number',
-				typeOptions: { minValue: 1 },
-				default: 50,
-				displayOptions: { show: { resource: ['post'], operation: ['list'] } },
-			},
-			{
-				displayName: 'Offset',
-				name: 'postOffset',
-				type: 'number',
-				default: 0,
-				displayOptions: { show: { resource: ['post'], operation: ['list'] } },
-			},
 		],
 	};
 
@@ -499,30 +426,17 @@ export class SynologyChat implements INodeType {
 			const operation = this.getNodeParameter('operation', i) as string;
 			let data: IDataObject | IDataObject[] | undefined;
 
-			if (resource === 'message') {
-				if (operation === 'send') {
-					const sendTo = this.getNodeParameter('sendTo', i) as 'channel' | 'user';
-					const targetId = sendTo === 'channel'
-						? Number(this.getNodeParameter('sendChannelId', i))
-						: Number(this.getNodeParameter('sendUserId', i));
-					data = await sendMessageAsUser(
-						chat,
-						sendTo,
-						targetId,
-						this.getNodeParameter('text', i) as string,
-					);
-				} else if (operation === 'listChannels') {
-					data = await chat.listChannelsByToken(this.getNodeParameter('token', i) as string);
-				} else if (operation === 'listUsers') {
-					data = await chat.listUsersByToken(this.getNodeParameter('token', i) as string);
-				} else if (operation === 'listPosts') {
-					data = await chat.listPostsByToken(
-						this.getNodeParameter('token', i) as string,
-						Number(this.getNodeParameter('channelId', i)),
-						undefined,
-						undefined,
-					);
-				}
+			if (resource === 'message' && operation === 'send') {
+				const sendTo = this.getNodeParameter('sendTo', i) as 'channel' | 'user';
+				const targetId = sendTo === 'channel'
+					? Number(this.getNodeParameter('sendChannelId', i))
+					: Number(this.getNodeParameter('sendUserId', i));
+				data = await sendMessageAsUser(
+					chat,
+					sendTo,
+					targetId,
+					this.getNodeParameter('text', i) as string,
+				);
 			} else if (resource === 'webhook') {
 				if (operation === 'create') {
 					data = await chat.createWebhook({
@@ -572,9 +486,13 @@ export class SynologyChat implements INodeType {
 						this.getNodeParameter('chType', i, 'private') as 'public' | 'private',
 						this.getNodeParameter('chEncrypted', i, false) as boolean,
 					);
-				}
-			} else if (resource === 'user') {
-				if (operation === 'list') {
+				} else if (operation === 'listPosts') {
+					data = await chat.listPosts({
+						channelId: Number(this.getNodeParameter('chChannelId', i)),
+						limit: this.getNodeParameter('chPostLimit', i, 50) as number,
+						offset: this.getNodeParameter('chPostOffset', i, 0) as number,
+					}) as unknown as IDataObject;
+				} else if (operation === 'listUsers') {
 					data = await chat.listUsers() as unknown as IDataObject[];
 				}
 			} else if (resource === 'outgoingWebhook') {
@@ -608,12 +526,6 @@ export class SynologyChat implements INodeType {
 				} else if (operation === 'delete') {
 					data = await chat.deleteBot(this.getNodeParameter('owUserId', i) as number);
 				}
-			} else if (resource === 'post' && operation === 'list') {
-				data = await chat.listPosts({
-					channelId: Number(this.getNodeParameter('postChannelId', i)),
-					limit: this.getNodeParameter('postLimit', i, 50) as number,
-					offset: this.getNodeParameter('postOffset', i, 0) as number,
-				}) as unknown as IDataObject;
 			}
 
 			returnData.push({ json: (data ?? { message: `Operation ${resource}.${operation} completed` }) as IDataObject, pairedItem: { item: i } });

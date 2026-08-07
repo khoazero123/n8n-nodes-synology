@@ -64,15 +64,6 @@ export interface ChatPost {
 	post_id: number;
 }
 
-export interface SendMessageInput {
-	token: string;
-	text?: string;
-	fileUrl?: string;
-	userIds?: number[];
-	channelIds?: number[];
-	attachments?: unknown[];
-}
-
 export interface CreateWebhookInput {
 	channelId: number;
 	nickname: string;

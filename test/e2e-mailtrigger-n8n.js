@@ -1,8 +1,18 @@
 #!/usr/bin/env node
 /* Synology MailPlus Trigger n8n E2E: send a test email, activate poll trigger, verify emission. */
 /* eslint-disable no-console */
+const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
+
+function loadEnvFile(file) {
+	if (!fs.existsSync(file)) return;
+	for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+		const m = line.match(/^([A-Z_]+)=(.*)$/);
+		if (m) process.env[m[1]] = m[2].replace(/^['\"]|['\"]$/g, '');
+	}
+}
+loadEnvFile('/home/ubuntu/.openclaw/workspace/.secrets/n8n-synology-e2e.env');
 
 const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-mail-trigger-e2e@example.com';
@@ -76,7 +86,7 @@ async function main() {
 			},
 		}, authHeaders);
 		const credId = credential.json.data.id;
-		const type = 'CUSTOM.synologyMailClient';
+		const type = 'CUSTOM.synologyMailTrigger';
 		const triggerNode = {
 			name: 'Mail Trigger', type, typeVersion: 1, position: [0, 0],
 			parameters: { triggerMailbox: 'inbox', triggerKeyword: '', triggerFrom: 'sender-filter@megavn.net', unreadOnly: false, readStatus: 'both', maxThreads: 50 },
@@ -95,14 +105,22 @@ async function main() {
 		const wfId = workflow.json.data.id;
 		console.log('workflow created:', wfId);
 
-		// 1. Send a test email to khoa@megavn.net
+		// 1. Activate the workflow first, then send a fresh test email so activation
+		// cannot consume the fixture before the explicit trigger poll below.
+
+		const draft = await request('GET', `/rest/workflows/${wfId}`, undefined, authHeaders);
+		const versionId = draft.json?.data?.versionId;
+		if (!versionId) throw new Error(`workflow draft has no versionId: ${draft.raw.slice(0, 300)}`);
+		const act = await request('POST', `/rest/workflows/${wfId}/activate`, { versionId }, authHeaders);
+		if (act.statusCode >= 300) throw new Error(`activation failed ${act.statusCode}: ${act.raw}`);
+		console.log('activated:', act.statusCode);
+		// Deactivate immediately so the scheduled poll cannot consume the fixture;
+		// the following manual run exercises the same poll() implementation.
+		const deact = await request('POST', `/rest/workflows/${wfId}/deactivate`, {}, authHeaders);
+		if (deact.statusCode >= 300) throw new Error(`deactivation failed ${deact.statusCode}: ${deact.raw}`);
 		const smtp = await sendTestEmail();
 		console.log('test email sent:', smtp);
 		await sleep(3000);
-
-		// 2. Activate the workflow (starts polling) then trigger a manual poll
-		const act = await request('PATCH', `/rest/workflows/${wfId}`, { active: true }, authHeaders);
-		console.log('activated:', act.statusCode);
 		// n8n polling trigger: run the workflow manually to force a poll
 		const run = await request('POST', `/rest/workflows/${wfId}/run`, { triggerToStartFrom: { name: 'Mail Trigger' } }, authHeaders);
 		console.log('run:', run.statusCode, run.raw.slice(0, 150));
@@ -169,10 +187,11 @@ async function main() {
 				}
 			} catch (e2) { /* skip unparseable */ }
 		}
-		if (!emitted) console.warn('⚠️  No trigger emission found in executions');
+		if (!emitted) throw new Error('No MailPlus trigger emission found in executions');
+		console.log('✅ MailPlus trigger emitted the test message');
 
 		// deactivate + cleanup
-		await request('PATCH', `/rest/workflows/${wfId}`, { active: false }, authHeaders).catch(() => {});
+		await request('POST', `/rest/workflows/${wfId}/deactivate`, {}, authHeaders).catch(() => {});
 		await request('POST', `/rest/workflows/${wfId}/archive`, undefined, authHeaders).catch(() => {});
 		await request('DELETE', `/rest/workflows/${wfId}`, undefined, authHeaders).catch(() => {});
 	} finally {

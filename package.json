@@ -26,6 +26,10 @@
   "main": "index.js",
   "scripts": {
     "build": "npx rimraf dist && tsc && gulp build:icons && node scripts/bundle.mjs",
+    "build:dev": "npm run build && node scripts/n8n-reload.mjs reload",
+    "n8n:start": "node scripts/n8n-reload.mjs start",
+    "n8n:reload": "node scripts/n8n-reload.mjs reload",
+    "n8n:stop": "node scripts/n8n-reload.mjs stop",
     "dev": "tsc --watch",
     "format": "prettier nodes credentials transport apps --write",
     "lint": "eslint nodes/**/*.ts credentials/**/*.ts apps/**/*.ts transport/**/*.ts package.json",

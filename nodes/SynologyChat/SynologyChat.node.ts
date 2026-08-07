@@ -1,12 +1,16 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
 import { ChatClient } from '../../apps/chatClient/ChatClient';
+import { buildChannelOptions } from '../../apps/chatClient/channelLoadOptions';
+import { assertTriggerWordForAnyChannel } from '../../apps/chatClient/outgoingWebhookUtils';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
 
@@ -174,10 +178,14 @@ export class SynologyChat implements INodeType {
 				description: 'Comma-separated user IDs to send to (bot conversations). Empty sends to the webhook channel.',
 			},
 			{
-				displayName: 'Channel ID',
+				displayName: 'Channel',
 				name: 'channelId',
-				type: 'number',
-				default: 0,
+				type: 'options',
+				required: true,
+				default: '',
+				typeOptions: {
+					loadOptionsMethod: 'getChannels',
+				},
 				displayOptions: { show: { resource: ['message'], operation: ['listPosts'] } },
 				description: 'Channel to read posts from',
 			},
@@ -192,11 +200,14 @@ export class SynologyChat implements INodeType {
 			},
 			// --- Webhook: Create ---
 			{
-				displayName: 'Channel ID',
+				displayName: 'Channel',
 				name: 'whChannelId',
-				type: 'number',
+				type: 'options',
 				required: true,
-				default: 0,
+				default: '',
+				typeOptions: {
+					loadOptionsMethod: 'getChannels',
+				},
 				displayOptions: { show: { resource: ['webhook'], operation: ['create'] } },
 				description: 'Channel the webhook will post into',
 			},
@@ -220,10 +231,13 @@ export class SynologyChat implements INodeType {
 				description: 'Bot user ID of the webhook (from List)',
 			},
 			{
-				displayName: 'Channel ID',
+				displayName: 'Channel',
 				name: 'whSetChannelId',
-				type: 'number',
+				type: 'options',
 				default: 0,
+				typeOptions: {
+					loadOptionsMethod: 'getChannelsOptional',
+				},
 				displayOptions: { show: { resource: ['webhook'], operation: ['set'] } },
 				description: 'New channel for the webhook',
 			},
@@ -270,11 +284,14 @@ export class SynologyChat implements INodeType {
 			},
 			// --- Channel: Get/Create ---
 			{
-				displayName: 'Channel ID',
+				displayName: 'Channel',
 				name: 'chChannelId',
-				type: 'number',
+				type: 'options',
 				required: true,
-				default: 0,
+				default: '',
+				typeOptions: {
+					loadOptionsMethod: 'getChannels',
+				},
 				displayOptions: { show: { resource: ['channel'], operation: ['get'] } },
 			},
 			{
@@ -307,12 +324,15 @@ export class SynologyChat implements INodeType {
 			},
 			// --- Outgoing Webhook: Create ---
 			{
-				displayName: 'Channel ID',
+				displayName: 'Channel',
 				name: 'owChannelId',
-				type: 'number',
+				type: 'options',
 				default: 0,
+				typeOptions: {
+					loadOptionsMethod: 'getChannelsWithAny',
+				},
 				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['create'] } },
-				description: 'Channel the webhook listens on. 0 = any channel (then trigger word is required).',
+				description: 'Channel the webhook listens on. Any Channel = listen on all channels (then trigger word is required).',
 			},
 			{
 				displayName: 'Trigger Word',
@@ -320,7 +340,7 @@ export class SynologyChat implements INodeType {
 				type: 'string',
 				default: '',
 				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['create'] } },
-				description: 'Whether messages starting with this word trigger the webhook. Empty = all messages (if channel is set).',
+				description: 'Required when Channel is Any Channel. Only messages starting with this word trigger the webhook. Leave empty for all messages in a specific channel.',
 			},
 			{
 				displayName: 'Destination URL',
@@ -350,12 +370,15 @@ export class SynologyChat implements INodeType {
 				description: 'Bot user ID of the outgoing webhook (from List)',
 			},
 			{
-				displayName: 'Channel ID',
+				displayName: 'Channel',
 				name: 'owSetChannelId',
-				type: 'number',
+				type: 'options',
 				default: 0,
+				typeOptions: {
+					loadOptionsMethod: 'getChannelsWithAny',
+				},
 				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['set'] } },
-				description: 'New channel for the webhook (0 = any channel)',
+				description: 'New channel for the webhook (Any Channel = any channel)',
 			},
 			{
 				displayName: 'Trigger Word',
@@ -363,6 +386,7 @@ export class SynologyChat implements INodeType {
 				type: 'string',
 				default: '',
 				displayOptions: { show: { resource: ['outgoingWebhook'], operation: ['set'] } },
+				description: 'Required when Channel is Any Channel.',
 			},
 			{
 				displayName: 'Destination URL',
@@ -373,11 +397,14 @@ export class SynologyChat implements INodeType {
 			},
 			// --- Post: List ---
 			{
-				displayName: 'Channel ID',
+				displayName: 'Channel',
 				name: 'postChannelId',
-				type: 'number',
+				type: 'options',
 				required: true,
-				default: 0,
+				default: '',
+				typeOptions: {
+					loadOptionsMethod: 'getChannels',
+				},
 				displayOptions: { show: { resource: ['post'], operation: ['list'] } },
 			},
 			{
@@ -396,6 +423,26 @@ export class SynologyChat implements INodeType {
 				displayOptions: { show: { resource: ['post'], operation: ['list'] } },
 			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			async getChannels(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials('synologyApi') as unknown as SynologyCredentials;
+				const chat = new ChatClient(new SynologyClient(this as never, credentials));
+				return buildChannelOptions(await chat.listChannels(), 'required');
+			},
+			async getChannelsWithAny(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials('synologyApi') as unknown as SynologyCredentials;
+				const chat = new ChatClient(new SynologyClient(this as never, credentials));
+				return buildChannelOptions(await chat.listChannels(), 'withAny');
+			},
+			async getChannelsOptional(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials('synologyApi') as unknown as SynologyCredentials;
+				const chat = new ChatClient(new SynologyClient(this as never, credentials));
+				return buildChannelOptions(await chat.listChannels(), 'optional');
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -426,7 +473,7 @@ export class SynologyChat implements INodeType {
 				} else if (operation === 'listPosts') {
 					data = await chat.listPostsByToken(
 						this.getNodeParameter('token', i) as string,
-						this.getNodeParameter('channelId', i) as number,
+						Number(this.getNodeParameter('channelId', i)),
 						undefined,
 						undefined,
 					);
@@ -434,7 +481,7 @@ export class SynologyChat implements INodeType {
 			} else if (resource === 'webhook') {
 				if (operation === 'create') {
 					data = await chat.createWebhook({
-						channelId: this.getNodeParameter('whChannelId', i) as number,
+						channelId: Number(this.getNodeParameter('whChannelId', i)),
 						nickname: this.getNodeParameter('whNickname', i) as string,
 					});
 				} else if (operation === 'list') {
@@ -444,7 +491,7 @@ export class SynologyChat implements INodeType {
 				} else if (operation === 'set') {
 					data = await chat.setWebhook(
 						this.getNodeParameter('whUserId', i) as number,
-						this.getNodeParameter('whSetChannelId', i, 0) as number || undefined,
+						Number(this.getNodeParameter('whSetChannelId', i, 0)) || undefined,
 						(this.getNodeParameter('whSetNickname', i, '') as string) || undefined,
 					);
 				} else if (operation === 'delete') {
@@ -473,7 +520,7 @@ export class SynologyChat implements INodeType {
 				if (operation === 'list') {
 					data = await chat.listChannels() as unknown as IDataObject;
 				} else if (operation === 'get') {
-					data = await chat.getChannel(this.getNodeParameter('chChannelId', i) as number) as unknown as IDataObject;
+					data = await chat.getChannel(Number(this.getNodeParameter('chChannelId', i))) as unknown as IDataObject;
 				} else if (operation === 'create') {
 					data = await chat.createChannel(
 						this.getNodeParameter('chName', i) as string,
@@ -483,11 +530,14 @@ export class SynologyChat implements INodeType {
 				}
 			} else if (resource === 'outgoingWebhook') {
 				if (operation === 'create') {
+					const owChannelId = Number(this.getNodeParameter('owChannelId', i, 0));
+					const owTriggerWord = (this.getNodeParameter('owTriggerWord', i, '') as string) || '';
+					assertTriggerWordForAnyChannel(this.getNode(), owChannelId, owTriggerWord);
 					const created = await chat.createOutgoingWebhook();
 					await chat.setOutgoingWebhook(
 						created.user_id,
-						this.getNodeParameter('owChannelId', i, 0) as number,
-						(this.getNodeParameter('owTriggerWord', i, '') as string) || undefined || '',
+						owChannelId,
+						owTriggerWord,
 						this.getNodeParameter('owUrl', i) as string,
 						(this.getNodeParameter('owNickname', i, '') as string) || undefined,
 					);
@@ -497,10 +547,13 @@ export class SynologyChat implements INodeType {
 				} else if (operation === 'get') {
 					data = await chat.getOutgoingWebhook(this.getNodeParameter('owUserId', i) as number);
 				} else if (operation === 'set') {
+					const owSetChannelId = Number(this.getNodeParameter('owSetChannelId', i, 0));
+					const owSetTriggerWord = this.getNodeParameter('owSetTriggerWord', i, '') as string;
+					assertTriggerWordForAnyChannel(this.getNode(), owSetChannelId, owSetTriggerWord);
 					data = await chat.setOutgoingWebhook(
 						this.getNodeParameter('owUserId', i) as number,
-						this.getNodeParameter('owSetChannelId', i, 0) as number,
-						this.getNodeParameter('owSetTriggerWord', i, '') as string,
+						owSetChannelId,
+						owSetTriggerWord,
 						this.getNodeParameter('owSetUrl', i) as string,
 					);
 				} else if (operation === 'delete') {
@@ -508,7 +561,7 @@ export class SynologyChat implements INodeType {
 				}
 			} else if (resource === 'post' && operation === 'list') {
 				data = await chat.listPosts({
-					channelId: this.getNodeParameter('postChannelId', i) as number,
+					channelId: Number(this.getNodeParameter('postChannelId', i)),
 					limit: this.getNodeParameter('postLimit', i, 50) as number,
 					offset: this.getNodeParameter('postOffset', i, 0) as number,
 				}) as unknown as IDataObject;

@@ -83,13 +83,10 @@ webhook tokens. This lets the node send messages as the logged-in DSM user.
 ## Node: SynologyChat
 
 Resources:
-- **Message**: Send a Message (as credential user to channel or DM) / List
-  Channels / Users / Posts (bot token)
+- **Message**: Send a Message (as credential user to channel or DM)
 - **Webhook**: Create / List / Get / Set / Delete
 - **Chatbot**: Create / List / Get / Set / Delete
-- **Channel**: List / Get / Create
-- **User**: List
-- **Post**: List
+- **Channel**: List / Get / Create / List Posts / List Users
 
 E2E: `test/e2e-chat-n8n.js` — 10/10 pass live (webhook create → **send message
 to channel** → list channels/posts → **send message to user** → create/get/delete

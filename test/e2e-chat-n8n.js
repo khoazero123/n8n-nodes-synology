@@ -195,7 +195,7 @@ let globalCredId = '';
 
 	// ============ 3. List posts in channel 2 (session) ============
 	{
-		const nodes = [MT, { name: 'List Posts', type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'post', operation: 'list', postChannelId: 2, postLimit: 10 }, credentials: c() }];
+		const nodes = [MT, { name: 'List Posts', type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'channel', operation: 'listPosts', chChannelId: 2, chPostLimit: 10 }, credentials: c() }];
 		const s = await runWorkflow('Chat List Posts', nodes, connect('Manual Trigger', 'List Posts'));
 		const n = s['List Posts'];
 		const posts = n?.json?.posts || [];

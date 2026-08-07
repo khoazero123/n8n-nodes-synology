@@ -9,8 +9,6 @@ import {
 	CHAT_CHANNEL_NAMED_API,
 	CHAT_CHATBOT_API,
 	CHAT_CHATBOT_API_VERSION,
-	CHAT_EXTERNAL_API,
-	CHAT_EXTERNAL_API_VERSION,
 	CHAT_POST_API,
 	CHAT_POST_API_VERSION,
 	CHAT_SESSION,
@@ -27,7 +25,6 @@ import type {
 	CreateWebhookInput,
 	IncomingWebhook,
 	ListPostsInput,
-	SendMessageInput,
 } from './types';
 import { CHAT_POST_TYPE_NORMAL } from './types';
 import type { SynologyClient } from '../../transport/SynologyClient';
@@ -36,69 +33,10 @@ import type { SynologyClient } from '../../transport/SynologyClient';
  * Synology Chat wrapper. Verified live on DSM 7 / Chat 2.4.6-22200
  * (2026-08-06).
  *
- * Two auth models:
- * - Session APIs (webhooks/chatbot/channel/post management) log in with
- *   session=Chat and send _sid + X-SYNO-TOKEN.
- * - External APIs (SYNO.Chat.External.*) are token-based: they need NO
- *   session — the webhook/bot token is passed as a form parameter. Callers
- *   must pass session: undefined to skip the login.
+ * Session APIs log in with session=Chat and send _sid + X-SYNO-TOKEN.
  */
 export class ChatClient {
 	constructor(private readonly synology: SynologyClient) {}
-
-	/**
-	 * Send a message through an incoming webhook token.
-	 * External API — no session needed.
-	 */
-	async sendMessage(input: SendMessageInput): Promise<IDataObject> {
-		const payload: IDataObject = {};
-		if (input.text) payload.text = input.text;
-		if (input.fileUrl) payload.file_url = input.fileUrl;
-		if (input.userIds) payload.user_ids = input.userIds;
-		if (input.channelIds) payload.channel_ids = input.channelIds;
-		if (input.attachments) payload.attachments = input.attachments;
-
-		return await this.synology.requestPath({
-			api: CHAT_EXTERNAL_API,
-			version: CHAT_EXTERNAL_API_VERSION,
-			method: 'incoming',
-			params: { token: input.token, payload: JSON.stringify(payload) },
-		}, 'entry.cgi');
-	}
-
-	/** List channels visible to a bot token. External API — no session. */
-	async listChannelsByToken(token: string): Promise<IDataObject> {
-		return await this.synology.requestPath({
-			api: CHAT_EXTERNAL_API,
-			version: CHAT_EXTERNAL_API_VERSION,
-			method: 'channel_list',
-			params: { token },
-		}, 'entry.cgi');
-	}
-
-	/** List users visible to a bot token. External API — no session. */
-	async listUsersByToken(token: string): Promise<IDataObject> {
-		return await this.synology.requestPath({
-			api: CHAT_EXTERNAL_API,
-			version: CHAT_EXTERNAL_API_VERSION,
-			method: 'user_list',
-			params: { token },
-		}, 'entry.cgi');
-	}
-
-	/** List posts visible to a bot token. External API — no session. */
-	async listPostsByToken(token: string, channelId: number, prevCount?: number, nextCount?: number, postId?: number): Promise<IDataObject> {
-		const params: IDataObject = { token, channel_id: channelId };
-		if (prevCount !== undefined) params.prev_count = prevCount;
-		if (nextCount !== undefined) params.next_count = nextCount;
-		if (postId !== undefined) params.post_id = postId;
-		return await this.synology.requestPath({
-			api: CHAT_EXTERNAL_API,
-			version: CHAT_EXTERNAL_API_VERSION,
-			method: 'post_list',
-			params,
-		}, 'entry.cgi');
-	}
 
 	/**
 	 * Create an incoming webhook and bind it to a channel.

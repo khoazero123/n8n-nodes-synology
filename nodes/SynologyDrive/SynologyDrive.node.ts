@@ -6,8 +6,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
-import { NodeOperationError } from 'n8n-workflow';
+import { NodeConnectionTypes, NodeOperationError  } from 'n8n-workflow';
 import { randomBytes } from 'node:crypto';
 import { generatePairedItemData } from './GenericFunctions';
 
@@ -112,9 +111,9 @@ export class SynologyDrive implements INodeType {
 		defaults: {
 			name: 'Synology Drive',
 		},
-		// eslint-disable-next-line
+		 
 		inputs: [NodeConnectionTypes.Main],
-		// eslint-disable-next-line
+		 
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [
 			{

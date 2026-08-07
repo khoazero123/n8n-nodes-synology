@@ -1,89 +1,71 @@
 {
-  "name": "n8n-nodes-synology",
-  "version": "0.1.5",
-  "description": "n8n community nodes for Synology NAS applications",
-  "keywords": [
-    "n8n-community-node-package",
-    "synology",
-    "synology-nas",
-    "synology-note-station",
-    "synology-drive",
-    "synology-download-station"
-  ],
-  "license": "MIT",
-  "homepage": "https://github.com/megavnet/n8n-nodes-synology",
-  "author": {
-    "name": "KhoaZero123",
-    "email": "khoazero123@gmail.com"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@github.com/megavnet/n8n-nodes-synology.git"
-  },
-  "engines": {
-    "node": ">=20.15"
-  },
-  "main": "index.js",
-  "scripts": {
-    "build": "npx rimraf dist && tsc && gulp build:icons && node scripts/bundle.mjs",
-    "build:dev": "npm run build && node scripts/n8n-reload.mjs reload",
-    "n8n:start": "node scripts/n8n-reload.mjs start",
-    "n8n:reload": "node scripts/n8n-reload.mjs reload",
-    "n8n:stop": "node scripts/n8n-reload.mjs stop",
-    "dev": "tsc --watch",
-    "format": "prettier nodes credentials transport apps --write",
-    "lint": "eslint nodes/**/*.ts credentials/**/*.ts apps/**/*.ts transport/**/*.ts package.json",
-    "lintfix": "eslint nodes/**/*.ts credentials/**/*.ts apps/**/*.ts transport/**/*.ts package.json --fix",
-    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes/**/*.ts credentials/**/*.ts apps/**/*.ts transport/**/*.ts package.json",
-    "test:e2e:n8n": "node test/e2e-n8n-workflow.js",
-    "test:e2e:n8n:notestation:expanded": "node test/e2e-n8n-notestation-expanded.js",
-    "test:e2e:n8n:notestation:attachments": "node test/e2e-n8n-notestation-attachments.js",
-    "test:e2e:n8n:evaluation": "node test/e2e-n8n-evaluation.js",
-    "test:e2e:drive:direct": "python3 test/e2e-drive-direct.py",
-    "test:e2e:drive:n8n": "node test/e2e-drive-n8n-workflow.js",
-    "test:e2e:ds:direct": "python3 test/e2e-download-station-core.py",
-    "test:e2e:ds:n8n": "node test/e2e-download-station-n8n.js",
-    "test:e2e": "npm run test:e2e:drive:direct && npm run test:e2e:drive:n8n && npm run test:e2e:n8n && npm run test:e2e:n8n:notestation:expanded",
-    "test:e2e:mail:n8n": "node test/e2e-mailclient-n8n.js",
-    "test:e2e:mail:trigger": "node test/e2e-mailtrigger-n8n.js",
-    "test:e2e:mail:filters": "node test/e2e-mailtrigger-filters.js",
-    "test:e2e:mail:extended": "node test/e2e-mailclient-extended.js",
-    "test:e2e:chat": "node test/e2e-chat-n8n.js",
-    "test:e2e:chat:outgoing": "node test/e2e-chat-outgoing.js",
-    "test:e2e:chat:trigger": "node test/e2e-chat-trigger-n8n.js",
-    "test:e2e:photos": "node test/e2e-photos-n8n.js"
-  },
-  "files": [
-    "dist",
-    "index.js"
-  ],
-  "n8n": {
-    "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/SynologyApi.credentials.js"
-    ],
-    "nodes": [
-      "dist/nodes/SynologyNoteStation/SynologyNoteStation.node.js",
-      "dist/nodes/SynologyDrive/SynologyDrive.node.js",
-      "dist/nodes/SynologyDownloadStation/SynologyDownloadStation.node.js",
-      "dist/nodes/SynologyMailPlusClient/SynologyMailPlusClient.node.js",
-      "dist/nodes/SynologyMailPlusClient/SynologyMailPlusClientTrigger.node.js",
-      "dist/nodes/SynologyChat/SynologyChat.node.js",
-      "dist/nodes/SynologyChat/SynologyChatTrigger.node.js",
-      "dist/nodes/SynologyPhotos/SynologyPhotos.node.js"
-    ]
-  },
-  "devDependencies": {
-    "@types/node": "^24.2.1",
-    "@typescript-eslint/parser": "~8.32.0",
-    "esbuild": "^0.28.1",
-    "eslint": "^8.57.0",
-    "eslint-plugin-n8n-nodes-base": "^1.16.3",
-    "gulp": "^5.0.0",
-    "prettier": "^3.5.3",
-    "typescript": "^5.8.2"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  }
+	"name": "n8n-nodes-synology",
+	"version": "0.1.5",
+	"description": "n8n community nodes for Synology NAS applications",
+	"keywords": [
+		"n8n-community-node-package",
+		"synology",
+		"synology-nas",
+		"synology-note-station",
+		"synology-drive",
+		"synology-download-station"
+	],
+	"license": "MIT",
+	"homepage": "https://github.com/khoazero123/n8n-nodes-synology",
+	"author": {
+		"name": "KhoaZero123",
+		"email": "khoazero123@gmail.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+ssh://git@github.com/khoazero123/n8n-nodes-synology.git"
+	},
+	"engines": {
+		"node": ">=20.15"
+	},
+	"scripts": {
+		"build": "n8n-node build && node scripts/bundle.mjs",
+		"build:dev": "npm run build && node scripts/n8n-reload.mjs reload",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"n8n:start": "node scripts/n8n-reload.mjs start",
+		"n8n:reload": "node scripts/n8n-reload.mjs reload",
+		"n8n:stop": "node scripts/n8n-reload.mjs stop",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"release": "n8n-node release",
+		"prepublishOnly": "n8n-node prerelease"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"strict": true,
+		"credentials": [
+			"dist/credentials/SynologyApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/SynologyNoteStation/SynologyNoteStation.node.js",
+			"dist/nodes/SynologyDrive/SynologyDrive.node.js",
+			"dist/nodes/SynologyDownloadStation/SynologyDownloadStation.node.js",
+			"dist/nodes/SynologyMailPlusClient/SynologyMailPlusClient.node.js",
+			"dist/nodes/SynologyMailPlusClient/SynologyMailPlusClientTrigger.node.js",
+			"dist/nodes/SynologyChat/SynologyChat.node.js",
+			"dist/nodes/SynologyChat/SynologyChatTrigger.node.js",
+			"dist/nodes/SynologyPhotos/SynologyPhotos.node.js"
+		]
+	},
+	"devDependencies": {
+		"@n8n/node-cli": "*",
+		"@types/node": "^24.2.1",
+		"esbuild": "^0.28.1",
+		"eslint": "9.29.0",
+		"prettier": "3.8.3",
+		"release-it": "20.2.0",
+		"typescript": "5.9.3"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	}
 }

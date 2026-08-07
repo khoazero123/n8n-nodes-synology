@@ -10,7 +10,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"noImplicitAny": true,
 		"noImplicitReturns": true,
-		"noUnusedLocals": false,
+		"noUnusedLocals": true,
 		"noUnusedParameters": false,
 		"strictNullChecks": true,
 		"preserveConstEnums": true,
@@ -20,15 +20,14 @@
 		"declaration": true,
 		"sourceMap": true,
 		"skipLibCheck": true,
-		"outDir": "./dist/",
+		"outDir": "./dist/"
 	},
 	"include": [
 		"credentials/**/*",
 		"nodes/**/*",
 		"nodes/**/*.json",
-		"credentials/**/*",
 		"transport/**/*",
 		"apps/**/*",
-		"package.json",
-	],
+		"package.json"
+	]
 }

@@ -2,7 +2,7 @@
 """Synology Drive REST API E2E smoke test.
 
 Required env:
-  SYNO_BASE_URL=http://192.168.1.175:5000
+  SYNO_BASE_URL=http://192.168.1.100:5000
   SYNO_ACCOUNT=...
   SYNO_PASS=...
 """

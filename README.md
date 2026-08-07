@@ -95,18 +95,7 @@ npm run lint
 
 ### E2E tests
 
-The E2E tests require a running n8n instance. Tests that call the Synology NAS use the shared environment variables `SYNO_BASE_URL`, `SYNO_ACCOUNT`, and `SYNO_PASS`; these are not MailPlus-specific.
-
-Available trigger tests include:
-
-```bash
-npm run test:e2e:chat:outgoing
-npm run test:e2e:chat:trigger
-npm run test:e2e:mail:trigger
-npm run test:e2e:mail:filters
-```
-
-The Chat trigger test covers activation, outgoing-webhook registration, channel filtering, trigger-word filtering, and payload delivery. MailPlus tests cover trigger polling and deterministic sender/read-status filters. Starred, attachment, and label fixtures can be enabled with `SYNO_MAIL_FILTER_FIXTURES=true` when those fixtures exist on the target NAS.
+E2E scripts require a running n8n instance and Synology NAS credentials (`SYNO_BASE_URL`, `SYNO_ACCOUNT`, `SYNO_PASS`). See [`AGENTS.md`](AGENTS.md) for the full command list and CI smoke suite.
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the development plan.
 

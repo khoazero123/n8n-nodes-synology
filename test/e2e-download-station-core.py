@@ -3,7 +3,7 @@
 Tests auth, API discovery, task CRUD, and statistics against a live NAS.
 
 Usage:
-  SYNO_BASE_URL=http://192.168.1.175:5000 SYNO_ACCOUNT=khoa SYNO_PASS=... python3 test/e2e-download-station-core.py
+  SYNO_BASE_URL=http://192.168.1.100:5000 SYNO_ACCOUNT=nasadmin SYNO_PASS=... python3 test/e2e-download-station-core.py
   ALLOW_DESTRUCTIVE_DS_E2E=1 SYNO_BASE_URL=... SYNO_ACCOUNT=... SYNO_PASS=... python3 test/e2e-download-station-core.py
 
 Credentials are provided via environment variables only and are not stored in the repo.

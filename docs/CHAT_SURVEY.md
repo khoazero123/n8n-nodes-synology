@@ -126,7 +126,7 @@ with `encrypted = t` in DB, created both via API probe and the node).
   - The stored `private_key_enc` may contain `\r\n` line wraps (64-char
     base64 wrap) — strip them before base64-decoding.
 - Users with keypairs on this NAS (as of 2026-08-06): user 6, 16, and
-  now user 10 (khoa) after enabling Encryption in the UI.
+  now user 10 (nasadmin) after enabling Encryption in the UI.
 - Node `channel.create`: `type` (Private/Public, default Private) +
   `Encrypted Channel` checkbox. Members: invite separately (API not yet
   exposed).

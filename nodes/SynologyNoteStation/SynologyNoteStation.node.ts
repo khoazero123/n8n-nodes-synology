@@ -1,11 +1,10 @@
-import { NodeOperationError } from 'n8n-workflow';
+import { NodeOperationError, NodeConnectionTypes  } from 'n8n-workflow';
 import type {
 	IExecuteFunctions,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
 import { NoteStationClient } from '../../apps/noteStation/NoteStationClient';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
@@ -94,9 +93,9 @@ export class SynologyNoteStation implements INodeType {
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Automate Synology Note Station notebooks, notes, shelves, shares, and attachments',
 		defaults: { name: 'Synology Note Station' },
-		// eslint-disable-next-line
+		 
 		inputs: [NodeConnectionTypes.Main],
-		// eslint-disable-next-line
+		 
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,

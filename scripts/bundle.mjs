@@ -3,8 +3,27 @@
 // resolve relative requires to sibling dirs (apps/, transport/) — so every
 // node file must be self-contained. n8n-workflow stays external (peer).
 import { build } from 'esbuild';
-import { readdirSync, existsSync } from 'fs';
-import { join } from 'path';
+import { cpSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { dirname, join } from 'path';
+
+function collectJsonFiles(dir, files = []) {
+	for (const entry of readdirSync(dir, { withFileTypes: true })) {
+		const filePath = join(dir, entry.name);
+		if (entry.isDirectory()) collectJsonFiles(filePath, files);
+		else if (entry.name.endsWith('.json')) files.push(filePath);
+	}
+	return files;
+}
+
+function copyNodeJsonFiles() {
+	for (const filePath of collectJsonFiles('nodes')) {
+		const destPath = join('dist', filePath);
+		mkdirSync(dirname(destPath), { recursive: true });
+		cpSync(filePath, destPath);
+	}
+}
+
+copyNodeJsonFiles();
 
 const dist = 'dist';
 const targets = [];

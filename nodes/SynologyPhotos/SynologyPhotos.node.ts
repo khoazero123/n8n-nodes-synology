@@ -37,9 +37,9 @@ export class SynologyPhotos implements INodeType {
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Work with Synology Photos: list albums and photos, download originals and thumbnails, search',
 		defaults: { name: 'Synology Photos' },
-		// eslint-disable-next-line
+		 
 		inputs: [NodeConnectionTypes.Main],
-		// eslint-disable-next-line
+		 
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,

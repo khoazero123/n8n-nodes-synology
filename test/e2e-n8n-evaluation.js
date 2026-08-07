@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Official n8n Evaluation Trigger/Test Run E2E for Synology Note Station. */
-/* eslint-disable no-console */
+ 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');

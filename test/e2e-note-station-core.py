@@ -2,8 +2,8 @@
 """Synology Note Station core CRUD E2E test.
 
 Required env:
-  SYNO_BASE_URL=http://192.168.1.175:5000
-  SYNO_ACCOUNT=khoa
+  SYNO_BASE_URL=http://192.168.1.100:5000
+  SYNO_ACCOUNT=nasadmin
   SYNO_PASS=...
 
 This script creates temporary test data and deletes it in cleanup.

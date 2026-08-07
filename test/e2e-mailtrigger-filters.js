@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Synology MailPlus Trigger filter E2E: verify each filter emits only matching mail. */
-/* eslint-disable no-console */
+ 
 const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
@@ -73,9 +73,9 @@ from email.mime.text import MIMEText
 msg = MIMEText("filter e2e body")
 msg["Subject"] = ${JSON.stringify(subject)}
 msg["From"] = ${JSON.stringify(from)}
-msg["To"] = "khoa@megavn.net"
-s = smtplib.SMTP("192.168.1.175", 25, timeout=10)
-s.sendmail(${JSON.stringify(from)}, ["khoa@megavn.net"], msg.as_string())
+msg["To"] = "user@example.com"
+s = smtplib.SMTP("192.168.1.100", 25, timeout=10)
+s.sendmail(${JSON.stringify(from)}, ["user@example.com"], msg.as_string())
 s.quit()
 print("sent")
 `;
@@ -111,7 +111,7 @@ async function main() {
 		const credId = credential.json.data.id;
 
 		// Send a unique test email first (from a filter-specific sender)
-		const filterFrom = `flt-${Date.now()}@megavn.net`;
+		const filterFrom = `flt-${Date.now()}@example.com`;
 		const filterSubject = `Filter E2E ${Date.now()}`;
 		await sendTestEmail(filterFrom, filterSubject);
 		console.log('test email sent:', filterFrom, filterSubject);

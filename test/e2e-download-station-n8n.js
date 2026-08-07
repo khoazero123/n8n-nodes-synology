@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Synology Download Station n8n workflow E2E smoke test. */
-/* eslint-disable no-console */
+ 
 const http = require('http');
 const crypto = require('crypto');
 

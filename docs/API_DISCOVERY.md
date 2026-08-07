@@ -65,7 +65,7 @@ Reusable n8n workflow-level attachment binary E2E script: `test/e2e-n8n-notestat
 
 ## E2E result 2026-08-04
 
-Core CRUD was tested against NAS `192.168.1.175:5000` with temporary data prefix `n8n-nodes-synology E2E 1785850054`.
+Core CRUD was tested against NAS `192.168.1.100:5000` with temporary data prefix `n8n-nodes-synology E2E 1785850054`.
 
 Passed:
 
@@ -97,7 +97,7 @@ It automatically:
 Usage:
 
 ```bash
-SYNO_BASE_URL='http://192.168.1.175:5000' SYNO_ACCOUNT='khoa' SYNO_PASS='...' node test/e2e-n8n-workflow.js
+SYNO_BASE_URL='http://192.168.1.100:5000' SYNO_ACCOUNT='nasadmin' SYNO_PASS='...' node test/e2e-n8n-workflow.js
 ```
 
 Current workflow coverage:

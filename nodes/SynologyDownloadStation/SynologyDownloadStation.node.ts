@@ -5,8 +5,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
-import { NodeApiError } from 'n8n-workflow';
+import { NodeConnectionTypes, NodeApiError  } from 'n8n-workflow';
 import { DownloadStationClient } from '../../apps/downloadStation/DownloadStationClient';
 import { ADDITIONAL_FIELDS } from '../../apps/downloadStation/constants';
 import { SynologyClient } from '../../transport/SynologyClient';
@@ -55,9 +54,9 @@ export class SynologyDownloadStation implements INodeType {
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Manage Synology Download Station tasks: create, list, pause, resume, delete, and get statistics',
 		defaults: { name: 'Synology Download Station' },
-		// eslint-disable-next-line
+		 
 		inputs: [NodeConnectionTypes.Main],
-		// eslint-disable-next-line
+		 
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,

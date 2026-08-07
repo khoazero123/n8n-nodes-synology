@@ -89,11 +89,11 @@ const toIdArray = (v: unknown): number[] => {
 	return [];
 };
 
-export class SynologyMailClient implements INodeType {
+export class SynologyMailPlusClient implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Synology MailPlus',
-		name: 'synologyMailClient',
-		icon: { light: 'file:SynologyMailClient.svg', dark: 'file:SynologyMailClient-dark.svg' },
+		name: 'synologyMailPlusClient',
+		icon: { light: 'file:SynologyMailPlusClient.svg', dark: 'file:SynologyMailPlusClient-dark.svg' },
 		group: ['input'],
 		version: 1,
 		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
@@ -102,7 +102,7 @@ export class SynologyMailClient implements INodeType {
 		builderHint: {
 			relatedNodes: [
 				{
-					nodeType: 'n8n-nodes-synology.synologyMailClientTrigger',
+					nodeType: 'n8n-nodes-synology.synologyMailPlusClientTrigger',
 					relationHint:
 						'Use Synology MailPlus Trigger for polling new email threads instead of Schedule Trigger with manual thread listing',
 				},

@@ -1,5 +1,5 @@
 {
-	"node": "n8n-nodes-synology.synologyMailClient",
+	"node": "n8n-nodes-synology.synologyMailPlusClientTrigger",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
 	"categories": ["Communication"],

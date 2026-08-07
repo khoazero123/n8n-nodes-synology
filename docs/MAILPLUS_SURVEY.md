@@ -45,7 +45,7 @@ Synology MailPlus có hai package API trên DSM:
 ### Mailbox ID mapping (built-in)
 `-1`=inbox, `-2`=archived, `-3`=drafts, `-4`=sent, `-5`=spam, `-6`=trash, `-7`=scheduled
 
-## 4. Node n8n — `Synology MailPlus` (`synologyMailClient`)
+## 4. Node n8n — `Synology MailPlus` (`synologyMailPlusClient`)
 
 Resources/operations:
 - **Mail**: Get Info
@@ -69,13 +69,13 @@ Workflow: Get Info → Mailboxes → Labels → Threads (inbox) → Message get 
 - MailPlusServer admin APIs (66) không cover — nếu cần sau này (quản trị account/domain/security) phải dùng session admin riêng.
 
 
-## 7. Trigger — `Synology MailPlus Trigger` (`synologyMailClientTrigger`)
+## 7. Trigger — `Synology MailPlus Trigger` (`synologyMailPlusClientTrigger`)
 
-Internal name must be `synologyMailClientTrigger` so n8n merges trigger actions with
-`synologyMailClient` (strips trailing `Trigger` from the trigger name). Same pattern as
+Internal name must be `synologyMailPlusClientTrigger` so n8n merges trigger actions with
+`synologyMailPlusClient` (strips trailing `Trigger` from the trigger name). Same pattern as
 `telegram` + `telegramTrigger`, `synologyChat` + `synologyChatTrigger`.
 
-Polling trigger in `nodes/SynologyMailClient/` (same folder as the action node, like Synology Chat).
+Polling trigger in `nodes/SynologyMailPlusClient/` (same folder as the action node, like Synology Chat).
 MailPlus has no webhook push — each poll calls `Thread.list` for the selected mailbox,
 compares against `staticData`, and emits new threads.
 

@@ -129,7 +129,7 @@ async function main() {
 }
 
 async function testFilter(authHeaders, credId, extraParams, expectedSubject, label) {
-	const type = 'CUSTOM.synologyMailClientTrigger';
+	const type = 'CUSTOM.synologyMailPlusClientTrigger';
 	const triggerNode = {
 		name: 'Mail Trigger', type, typeVersion: 1, position: [0, 0],
 		parameters: { mailbox: 'inbox', keyword: '', maxThreads: 100, ...extraParams },

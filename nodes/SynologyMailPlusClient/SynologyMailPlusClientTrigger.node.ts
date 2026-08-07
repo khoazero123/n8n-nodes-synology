@@ -6,11 +6,11 @@ import { pollNewMailThreads } from '../../apps/mailClient/mailPollUtils';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
 
-export class SynologyMailTrigger implements INodeType {
+export class SynologyMailPlusClientTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Synology MailPlus Trigger',
-		name: 'synologyMailClientTrigger',
-		icon: { light: 'file:SynologyMailClient.svg', dark: 'file:SynologyMailClient-dark.svg' },
+		name: 'synologyMailPlusClientTrigger',
+		icon: { light: 'file:SynologyMailPlusClient.svg', dark: 'file:SynologyMailPlusClient-dark.svg' },
 		group: ['trigger'],
 		version: 1,
 		description: 'Triggers when new mail arrives in a Synology MailPlus mailbox',

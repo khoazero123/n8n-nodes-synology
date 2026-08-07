@@ -37,14 +37,14 @@ export class SynologyChatTrigger implements INodeType {
 		],
 		properties: [
 			{
-				displayName: 'Channel',
+				displayName: 'Channel Name or ID',
 				name: 'channelId',
 				type: 'options',
 				default: 0,
 				typeOptions: {
 					loadOptionsMethod: 'getChannels',
 				},
-				description: 'Synology Chat channel to listen on. Choose "Any Channel" to listen on all channels. Use ⋯ → Refresh List to reload from the NAS.',
+				description: 'Synology Chat channel to listen on. Choose "Any Channel" to listen on all channels. Use ⋯ → Refresh List to reload from the NAS. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Trigger Word',

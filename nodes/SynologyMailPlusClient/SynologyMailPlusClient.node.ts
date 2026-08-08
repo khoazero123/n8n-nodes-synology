@@ -6,12 +6,12 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeApiError  } from 'n8n-workflow';
-import { MailClientClient } from '../../apps/mailClient/MailClientClient';
-import { MAILBOX_ID_MAP } from '../../apps/mailClient/constants';
+import { MailPlusClient } from '../../apps/mailPlusClient/MailPlusClient';
+import { MAIL_PLUS_MAILBOX_ID_MAP } from '../../apps/mailPlusClient/constants';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
 
-const mailOperations = [
+const mailPlusOperations = [
 	{ name: 'Get Info', value: 'getInfo', action: 'Get MailPlus client information' },
 ];
 
@@ -123,10 +123,10 @@ export class SynologyMailPlusClient implements INodeType {
 					{ name: 'Draft', value: 'draft' },
 					{ name: 'Filter', value: 'filter' },
 					{ name: 'Label', value: 'label' },
-					{ name: 'Mail', value: 'mail' },
 					{ name: 'Mail Merge', value: 'mailMerge' },
 					{ name: 'Mail Template', value: 'template' },
 					{ name: 'Mailbox', value: 'mailbox' },
+					{ name: 'MailPlus', value: 'mailPlus' },
 					{ name: 'Message', value: 'message' },
 					{ name: 'Signature', value: 'signature' },
 					{ name: 'SMTP Account', value: 'smtp' },
@@ -139,8 +139,8 @@ export class SynologyMailPlusClient implements INodeType {
 				name: 'operation',
 				type: 'options',
 				noDataExpression: true,
-				displayOptions: { show: { resource: ['mail'] } },
-				options: mailOperations,
+				displayOptions: { show: { resource: ['mailPlus'] } },
+				options: mailPlusOperations,
 				default: 'getInfo',
 			},
 			{
@@ -596,7 +596,7 @@ export class SynologyMailPlusClient implements INodeType {
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const credentials = await this.getCredentials('synologyApi') as unknown as SynologyCredentials;
-		const mc = new MailClientClient(new SynologyClient(this, credentials));
+		const mc = new MailPlusClient(new SynologyClient(this, credentials));
 		const returnData: INodeExecutionData[] = [];
 
 		for (let i = 0; i < items.length; i++) {
@@ -604,11 +604,11 @@ export class SynologyMailPlusClient implements INodeType {
 			const operation = this.getNodeParameter('operation', i) as string;
 			let data: IDataObject | undefined;
 
-			if (resource === 'mail' && operation === 'getInfo') {
+			if (resource === 'mailPlus' && operation === 'getInfo') {
 				data = await mc.getInfo() as unknown as IDataObject;
 			} else if (resource === 'thread' && operation === 'list') {
 				data = await mc.listThreads({
-					mailboxId: MAILBOX_ID_MAP[this.getNodeParameter('mailbox', i) as string],
+					mailboxId: MAIL_PLUS_MAILBOX_ID_MAP[this.getNodeParameter('mailbox', i) as string],
 					offset: this.getNodeParameter('offset', i, 0) as number,
 					limit: this.getNodeParameter('limit', i, 200) as number,
 					keyword: (this.getNodeParameter('keyword', i, '') as string) || undefined,

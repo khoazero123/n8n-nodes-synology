@@ -1,8 +1,8 @@
 import type { IDataObject, INodeExecutionData, INodeType, INodeTypeDescription, IPollFunctions } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
-import { MailClientClient } from '../../apps/mailClient/MailClientClient';
-import { MAILBOX_ID_MAP } from '../../apps/mailClient/constants';
-import { pollNewMailThreads } from '../../apps/mailClient/mailPollUtils';
+import { MailPlusClient } from '../../apps/mailPlusClient/MailPlusClient';
+import { MAIL_PLUS_MAILBOX_ID_MAP } from '../../apps/mailPlusClient/constants';
+import { pollNewMailPlusThreads } from '../../apps/mailPlusClient/mailPlusPollUtils';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
 
@@ -37,7 +37,7 @@ export class SynologyMailPlusClientTrigger implements INodeType {
 			},
 			{
 				displayName: 'Mailbox', name: 'mailbox', type: 'options', default: 'inbox',
-				options: Object.keys(MAILBOX_ID_MAP).map((name) => ({ name: name[0].toUpperCase() + name.slice(1), value: name })),
+				options: Object.keys(MAIL_PLUS_MAILBOX_ID_MAP).map((name) => ({ name: name[0].toUpperCase() + name.slice(1), value: name })),
 			},
 			{ displayName: 'Search Keyword', name: 'keyword', type: 'string', default: '', description: 'Optional server-side keyword filter' },
 			{ displayName: 'From (Sender)', name: 'from', type: 'string', default: '', description: 'Optional sender filter' },
@@ -55,9 +55,9 @@ export class SynologyMailPlusClientTrigger implements INodeType {
 
 	async poll(this: IPollFunctions): Promise<INodeExecutionData[][] | null> {
 		const credentials = await this.getCredentials('synologyApi') as unknown as SynologyCredentials;
-		const mc = new MailClientClient(new SynologyClient(this as never, credentials));
+		const mc = new MailPlusClient(new SynologyClient(this as never, credentials));
 		const staticData = this.getWorkflowStaticData('global') as IDataObject;
-		const items = await pollNewMailThreads(mc, staticData, {
+		const items = await pollNewMailPlusThreads(mc, staticData, {
 			mailbox: this.getNodeParameter('mailbox', 'inbox') as string,
 			keyword: (this.getNodeParameter('keyword', '') as string) || undefined,
 			from: (this.getNodeParameter('from', '') as string) || undefined,

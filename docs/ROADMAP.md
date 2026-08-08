@@ -17,6 +17,8 @@ Planned nodes:
 - Synology File Station
 - Synology Photos
 - Synology Calendar
+- Synology MailPlus — **implemented** (`SynologyMailPlusClient`, see `docs/MAILPLUS_SURVEY.md`)
+- Synology Mail (legacy) — **planned** (separate node; do not reuse `mailPlus` prefixes)
 
 ## Phase 1: Note Station — baseline complete, feature parity pending
 
@@ -112,6 +114,12 @@ The Download Station node is implemented and passes build, lint, and package dry
 - V1 `create` verification on local NAS (may fail on DSM7; V2 fallback if needed)
 - Resource-level operations: `info` config mutation (`setConfig`), `schedule`, `rss`
 - `btSearch` `start`/`clean` (search result lifecycle) — only `list` (search) is verified so far
+
+## Phase 4: MailPlus — baseline complete
+
+MailPlus user operations are implemented via `Synology MailPlus` and `Synology MailPlus Trigger`
+nodes. Client code lives in `apps/mailPlusClient/`. See `docs/MAILPLUS_SURVEY.md` for API survey,
+E2E coverage, and the Mail vs MailPlus naming note.
 
 ## Development checks
 

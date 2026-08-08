@@ -1,4 +1,4 @@
-export interface MailClientInfo {
+export interface MailPlusClientInfo {
 	database_ready: boolean;
 	uid: number;
 	compatibility_version?: string;

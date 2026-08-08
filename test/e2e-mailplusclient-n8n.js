@@ -109,7 +109,7 @@ async function main() {
 	let workflow;
 	try {
 		credential = await request('POST', '/rest/credentials', {
-			name: `Synology Mail E2E ${Date.now()}`,
+			name: `Synology MailPlus E2E ${Date.now()}`,
 			type: 'synologyApi',
 			data: {
 				baseUrl: process.env.SYNO_BASE_URL,
@@ -122,7 +122,7 @@ async function main() {
 		const c = { synologyApi: { id: credential.json.data.id, name: credential.json.data.name } };
 		const nodes = [
 			{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
-			{ name: 'Get Info', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'mail', operation: 'getInfo' }, credentials: c },
+			{ name: 'Get Info', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'mailPlus', operation: 'getInfo' }, credentials: c },
 			{ name: 'Get Mailboxes', type, typeVersion: 1, position: [480, 0], parameters: { resource: 'mailbox', operation: 'list' }, credentials: c },
 			{ name: 'Get Labels', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'label', operation: 'list' }, credentials: c },
 			{ name: 'List Threads', type, typeVersion: 1, position: [960, 0], parameters: { resource: 'thread', operation: 'list', mailbox: 'inbox', limit: 50 }, credentials: c },
@@ -133,7 +133,7 @@ async function main() {
 		const connections = {};
 		for (let i = 0; i < nodes.length - 1; i++) connections[nodes[i].name] = { main: [[{ node: nodes[i + 1].name, type: 'main', index: 0 }]] };
 		workflow = await request('POST', '/rest/workflows', {
-			name: `Synology Mail Node E2E ${Date.now()}`,
+			name: `Synology MailPlus Node E2E ${Date.now()}`,
 			nodes,
 			connections,
 			active: false,

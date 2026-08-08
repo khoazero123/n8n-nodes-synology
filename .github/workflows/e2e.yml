@@ -188,14 +188,14 @@ jobs:
           N8N_OWNER_PASSWORD: N8nCiE2e-ChangeMe-2026!
 
       - name: Synology MailPlus trigger E2E
-        run: node test/e2e-mailtrigger-n8n.js
+        run: node test/e2e-mailplusclient-trigger-n8n.js
         env:
           N8N_BASE_URL: http://127.0.0.1:5680
           N8N_OWNER_EMAIL: synology-ci-e2e@example.com
           N8N_OWNER_PASSWORD: N8nCiE2e-ChangeMe-2026!
 
       - name: Synology MailPlus trigger filters E2E
-        run: node test/e2e-mailtrigger-filters.js
+        run: node test/e2e-mailplusclient-trigger-filters.js
         env:
           N8N_BASE_URL: http://127.0.0.1:5680
           N8N_OWNER_EMAIL: synology-ci-e2e@example.com

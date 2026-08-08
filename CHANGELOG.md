@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `synologyMailClientTrigger` → `synologyMailPlusClient` /
   `synologyMailPlusClientTrigger`. Existing workflows must re-add the
   node or update node type references.
+- Rename `apps/mailClient` → `apps/mailPlusClient` (`MailPlusClient`
+  class) and MailPlus E2E scripts to `e2e-mailplusclient-*.js`.
+- Clarify MailPlus-only naming: `mailPlus` resource, `MAIL_PLUS_*` constants,
+  `mailPlusPollUtils`, trigger static-data keys `mailPlusSeen_*`.
 
 ## [0.1.5] - 2026-08-06
 

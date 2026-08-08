@@ -1,8 +1,8 @@
 import type { IDataObject, INodeExecutionData } from 'n8n-workflow';
-import type { MailClientClient } from './MailClientClient';
-import { MAILBOX_ID_MAP } from './constants';
+import type { MailPlusClient } from './MailPlusClient';
+import { MAIL_PLUS_MAILBOX_ID_MAP } from './constants';
 
-export interface MailPollInput {
+export interface MailPlusPollInput {
 	mailbox: string;
 	keyword?: string;
 	from?: string;
@@ -14,14 +14,14 @@ export interface MailPollInput {
 	maxThreads: number;
 }
 
-/** Poll mailbox threads and return new items since the last poll (staticData dedup). */
-export async function pollNewMailThreads(
-	mc: MailClientClient,
+/** Poll MailPlus mailbox threads and return new items since the last poll (staticData dedup). */
+export async function pollNewMailPlusThreads(
+	mc: MailPlusClient,
 	staticData: IDataObject,
-	input: MailPollInput,
+	input: MailPlusPollInput,
 ): Promise<INodeExecutionData[] | null> {
 	const mailbox = input.mailbox;
-	const mailboxId = MAILBOX_ID_MAP[mailbox];
+	const mailboxId = MAIL_PLUS_MAILBOX_ID_MAP[mailbox];
 	const threads = await mc.listThreads({
 		mailboxId,
 		offset: 0,
@@ -31,7 +31,7 @@ export async function pollNewMailThreads(
 		label: input.label || undefined,
 	});
 
-	const seenKey = `mailSeen_${mailbox}`;
+	const seenKey = `mailPlusSeen_${mailbox}`;
 	const seenIds = new Set<number>(Array.isArray(staticData[seenKey]) ? staticData[seenKey] as number[] : []);
 	const now = Date.now();
 
@@ -61,7 +61,7 @@ export async function pollNewMailThreads(
 		.slice(0, input.maxThreads);
 
 	staticData[seenKey] = [...new Set((threads.thread ?? []).map((t) => t.id))];
-	staticData[`mailSeenAt_${mailbox}`] = now;
+	staticData[`mailPlusSeenAt_${mailbox}`] = now;
 
 	if (newThreads.length === 0) return null;
 

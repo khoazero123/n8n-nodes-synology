@@ -1,23 +1,23 @@
 import type { IDataObject, IN8nHttpFullResponse } from 'n8n-workflow';
 import {
-	MAIL_CLIENT_SESSION,
-	MAIL_INFO_API,
-	MAIL_INFO_API_VERSION,
-	MAIL_THREAD_API,
-	MAIL_THREAD_API_VERSION,
-	MAIL_MESSAGE_API,
-	MAIL_MESSAGE_API_VERSION,
-	MAIL_MAILBOX_API,
-	MAIL_MAILBOX_API_VERSION,
-	MAIL_DRAFT_API,
-	MAIL_DRAFT_API_VERSION,
-	MAIL_ATTACHMENT_API,
-	MAIL_ATTACHMENT_API_VERSION,
-	MAIL_LABEL_API,
-	MAIL_LABEL_API_VERSION,
+	MAIL_PLUS_CLIENT_SESSION,
+	MAIL_PLUS_INFO_API,
+	MAIL_PLUS_INFO_API_VERSION,
+	MAIL_PLUS_THREAD_API,
+	MAIL_PLUS_THREAD_API_VERSION,
+	MAIL_PLUS_MESSAGE_API,
+	MAIL_PLUS_MESSAGE_API_VERSION,
+	MAIL_PLUS_MAILBOX_API,
+	MAIL_PLUS_MAILBOX_API_VERSION,
+	MAIL_PLUS_DRAFT_API,
+	MAIL_PLUS_DRAFT_API_VERSION,
+	MAIL_PLUS_ATTACHMENT_API,
+	MAIL_PLUS_ATTACHMENT_API_VERSION,
+	MAIL_PLUS_LABEL_API,
+	MAIL_PLUS_LABEL_API_VERSION,
 } from './constants';
 import type {
-	MailClientInfo,
+	MailPlusClientInfo,
 	Mailbox,
 	ThreadSummary,
 	MailMessage,
@@ -44,22 +44,22 @@ import type {
 import type { SynologyClient } from '../../transport/SynologyClient';
 
 /**
- * MailClient wrapper. All APIs verified live on DSM 7 / MailPlus 3.x
+ * MailPlus client wrapper. All APIs verified live on DSM 7 / MailPlus 3.x
  * (2026-08-06): session=MailClient, form-urlencoded + _sid + X-SYNO-TOKEN,
  * boolean/array/object params JSON-encoded as strings (like Note Station).
  */
-export class MailClientClient {
+export class MailPlusClient {
 	constructor(private readonly synology: SynologyClient) {}
 
-	/** Get MailClient info (uid, database_ready). */
-	async getInfo(): Promise<MailClientInfo> {
+	/** Get MailPlus client info (uid, database_ready). */
+	async getInfo(): Promise<MailPlusClientInfo> {
 		return await this.synology.requestPath({
-			api: MAIL_INFO_API,
-			version: MAIL_INFO_API_VERSION,
+			api: MAIL_PLUS_INFO_API,
+			version: MAIL_PLUS_INFO_API_VERSION,
 			method: 'getinfo',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: {},
-		}, 'entry.cgi') as unknown as MailClientInfo;
+		}, 'entry.cgi') as unknown as MailPlusClientInfo;
 	}
 
 	/** List threads in a mailbox. */
@@ -77,10 +77,10 @@ export class MailClientClient {
 		if (input.keyword) params.keyword = input.keyword;
 
 		return await this.synology.requestPath({
-			api: MAIL_THREAD_API,
-			version: MAIL_THREAD_API_VERSION,
+			api: MAIL_PLUS_THREAD_API,
+			version: MAIL_PLUS_THREAD_API_VERSION,
 			method: 'list',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params,
 		}, 'entry.cgi') as unknown as { total: number; thread: ThreadSummary[] };
 	}
@@ -88,10 +88,10 @@ export class MailClientClient {
 	/** Get full message content by message id. */
 	async getMessage(input: GetMessageInput): Promise<{ message: MailMessage[] }> {
 		return await this.synology.requestPath({
-			api: MAIL_MESSAGE_API,
-			version: MAIL_MESSAGE_API_VERSION,
+			api: MAIL_PLUS_MESSAGE_API,
+			version: MAIL_PLUS_MESSAGE_API_VERSION,
 			method: 'get',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: {
 				id: JSON.stringify([input.messageId]),
 				additional: JSON.stringify(input.additional ?? ['blockquote', 'truncated']),
@@ -102,10 +102,10 @@ export class MailClientClient {
 	/** Download the raw original email (RFC822 source) as binary. */
 	async downloadOriginal(messageId: number): Promise<IN8nHttpFullResponse> {
 		return await this.synology.requestBinary({
-			api: MAIL_MESSAGE_API,
-			version: MAIL_MESSAGE_API_VERSION,
+			api: MAIL_PLUS_MESSAGE_API,
+			version: MAIL_PLUS_MESSAGE_API_VERSION,
 			method: 'download_original',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: messageId },
 		});
 	}
@@ -113,10 +113,10 @@ export class MailClientClient {
 	/** List mailboxes. */
 	async listMailboxes(input: ListMailboxesInput = {}): Promise<{ mailbox: Mailbox[] }> {
 		return await this.synology.requestPath({
-			api: MAIL_MAILBOX_API,
-			version: MAIL_MAILBOX_API_VERSION,
+			api: MAIL_PLUS_MAILBOX_API,
+			version: MAIL_PLUS_MAILBOX_API_VERSION,
 			method: 'list',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: {
 				subscription: input.subscription ?? false,
 				additional: JSON.stringify(input.additional ?? ['unread_count', 'draft_total_count']),
@@ -128,10 +128,10 @@ export class MailClientClient {
 	/** List labels. */
 	async listLabels(input: ListLabelsInput = {}): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_LABEL_API,
-			version: MAIL_LABEL_API_VERSION,
+			api: MAIL_PLUS_LABEL_API,
+			version: MAIL_PLUS_LABEL_API_VERSION,
 			method: 'list',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: {
 				additional: JSON.stringify(input.additional ?? ['unread_count']),
 				conversation_view: true,
@@ -156,10 +156,10 @@ export class MailClientClient {
 		if (input.scheduleTime !== undefined && input.scheduleTime > 0) params.schedule_time = input.scheduleTime;
 
 		return await this.synology.requestPath({
-			api: MAIL_DRAFT_API,
-			version: MAIL_DRAFT_API_VERSION,
+			api: MAIL_PLUS_DRAFT_API,
+			version: MAIL_PLUS_DRAFT_API_VERSION,
 			method: 'create',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params,
 		}, 'entry.cgi');
 	}
@@ -167,10 +167,10 @@ export class MailClientClient {
 	/** Send a draft message. */
 	async sendDraft(input: SendDraftInput): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_DRAFT_API,
-			version: MAIL_DRAFT_API_VERSION,
+			api: MAIL_PLUS_DRAFT_API,
+			version: MAIL_PLUS_DRAFT_API_VERSION,
 			method: 'send',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: input.draftId },
 		}, 'entry.cgi');
 	}
@@ -178,10 +178,10 @@ export class MailClientClient {
 	/** Download a message attachment by id. */
 	async downloadAttachment(attachmentId: string): Promise<IN8nHttpFullResponse> {
 		return await this.synology.requestBinary({
-			api: MAIL_ATTACHMENT_API,
-			version: MAIL_ATTACHMENT_API_VERSION,
+			api: MAIL_PLUS_ATTACHMENT_API,
+			version: MAIL_PLUS_ATTACHMENT_API_VERSION,
 			method: 'download',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: attachmentId },
 		});
 	}
@@ -190,10 +190,10 @@ export class MailClientClient {
 	async uploadAttachment(draftId: number, filename: string, data: Buffer): Promise<IDataObject> {
 		return await this.synology.requestMultipart(
 			{
-				api: MAIL_ATTACHMENT_API,
-				version: MAIL_ATTACHMENT_API_VERSION,
+				api: MAIL_PLUS_ATTACHMENT_API,
+				version: MAIL_PLUS_ATTACHMENT_API_VERSION,
 				method: 'upload',
-				session: MAIL_CLIENT_SESSION,
+				session: MAIL_PLUS_CLIENT_SESSION,
 				multipartPath: 'entry.cgi',
 				authMode: 'cookie',
 				params: {
@@ -209,10 +209,10 @@ export class MailClientClient {
 	/** Mark messages read/unread. */
 	async setMessageRead(input: SetMessageReadInput): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_MESSAGE_API,
-			version: MAIL_MESSAGE_API_VERSION,
+			api: MAIL_PLUS_MESSAGE_API,
+			version: MAIL_PLUS_MESSAGE_API_VERSION,
 			method: 'set_read',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify(input.messageIds), read: input.read },
 		}, 'entry.cgi');
 	}
@@ -220,10 +220,10 @@ export class MailClientClient {
 	/** Star/unstar messages. */
 	async setMessageStar(input: SetMessageStarInput): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_MESSAGE_API,
-			version: MAIL_MESSAGE_API_VERSION,
+			api: MAIL_PLUS_MESSAGE_API,
+			version: MAIL_PLUS_MESSAGE_API_VERSION,
 			method: 'set_star',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify(input.messageIds), star: input.star ? 1 : 0 },
 		}, 'entry.cgi');
 	}
@@ -231,10 +231,10 @@ export class MailClientClient {
 	/** Move messages to another mailbox. */
 	async moveMessage(input: MoveMessageInput): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_MESSAGE_API,
-			version: MAIL_MESSAGE_API_VERSION,
+			api: MAIL_PLUS_MESSAGE_API,
+			version: MAIL_PLUS_MESSAGE_API_VERSION,
 			method: 'set_mailbox',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify(input.messageIds), mailbox_id: input.mailboxId },
 		}, 'entry.cgi');
 	}
@@ -242,10 +242,10 @@ export class MailClientClient {
 	/** Mark threads read/unread. */
 	async setThreadRead(input: SetThreadReadInput): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_THREAD_API,
-			version: MAIL_THREAD_API_VERSION,
+			api: MAIL_PLUS_THREAD_API,
+			version: MAIL_PLUS_THREAD_API_VERSION,
 			method: 'set_read',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify(input.threadIds), read: input.read, conversation_view: true },
 		}, 'entry.cgi');
 	}
@@ -253,10 +253,10 @@ export class MailClientClient {
 	/** Add a label to threads. */
 	async addThreadLabel(input: ThreadLabelInput): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_THREAD_API,
-			version: MAIL_THREAD_API_VERSION,
+			api: MAIL_PLUS_THREAD_API,
+			version: MAIL_PLUS_THREAD_API_VERSION,
 			method: 'add_label',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify(input.threadIds), label_id: JSON.stringify([input.labelId]), conversation_view: true },
 		}, 'entry.cgi');
 	}
@@ -264,10 +264,10 @@ export class MailClientClient {
 	/** Remove a label from threads. */
 	async removeThreadLabel(input: ThreadLabelInput): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_THREAD_API,
-			version: MAIL_THREAD_API_VERSION,
+			api: MAIL_PLUS_THREAD_API,
+			version: MAIL_PLUS_THREAD_API_VERSION,
 			method: 'remove_label',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify(input.threadIds), label_id: JSON.stringify([input.labelId]), conversation_view: true },
 		}, 'entry.cgi');
 	}
@@ -275,10 +275,10 @@ export class MailClientClient {
 	/** Delete threads (move to trash of the given mailbox). */
 	async deleteThread(input: DeleteThreadInput): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_THREAD_API,
-			version: MAIL_THREAD_API_VERSION,
+			api: MAIL_PLUS_THREAD_API,
+			version: MAIL_PLUS_THREAD_API_VERSION,
 			method: 'delete',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify(input.threadIds), mailbox_id: input.mailboxId, conversation_view: true },
 		}, 'entry.cgi');
 	}
@@ -286,10 +286,10 @@ export class MailClientClient {
 	/** Move threads between mailboxes. */
 	async moveThread(input: MoveThreadInput): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_THREAD_API,
-			version: MAIL_THREAD_API_VERSION,
+			api: MAIL_PLUS_THREAD_API,
+			version: MAIL_PLUS_THREAD_API_VERSION,
 			method: 'set_mailbox',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify(input.threadIds), mailbox_id: input.mailboxId, operate_mailbox_id: input.operateMailboxId, conversation_view: true },
 		}, 'entry.cgi');
 	}
@@ -298,10 +298,10 @@ export class MailClientClient {
 	async createLabel(input: CreateLabelInput): Promise<IDataObject> {
 		const strip = (c: string) => c.replace(/^#/, '');
 		return await this.synology.requestPath({
-			api: MAIL_LABEL_API,
-			version: MAIL_LABEL_API_VERSION,
+			api: MAIL_PLUS_LABEL_API,
+			version: MAIL_PLUS_LABEL_API_VERSION,
 			method: 'create',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { name: input.name, background_color: strip(input.backgroundColor), text_color: strip(input.textColor) },
 		}, 'entry.cgi');
 	}
@@ -314,10 +314,10 @@ export class MailClientClient {
 		if (input.backgroundColor !== undefined) params.background_color = strip(input.backgroundColor);
 		if (input.textColor !== undefined) params.text_color = strip(input.textColor);
 		return await this.synology.requestPath({
-			api: MAIL_LABEL_API,
-			version: MAIL_LABEL_API_VERSION,
+			api: MAIL_PLUS_LABEL_API,
+			version: MAIL_PLUS_LABEL_API_VERSION,
 			method: 'set',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params,
 		}, 'entry.cgi');
 	}
@@ -325,10 +325,10 @@ export class MailClientClient {
 	/** Delete labels. */
 	async deleteLabels(labelIds: number[]): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_LABEL_API,
-			version: MAIL_LABEL_API_VERSION,
+			api: MAIL_PLUS_LABEL_API,
+			version: MAIL_PLUS_LABEL_API_VERSION,
 			method: 'delete',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify(labelIds) },
 		}, 'entry.cgi');
 	}
@@ -336,10 +336,10 @@ export class MailClientClient {
 	/** Create a mailbox. */
 	async createMailbox(input: CreateMailboxInput): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_MAILBOX_API,
-			version: MAIL_MAILBOX_API_VERSION,
+			api: MAIL_PLUS_MAILBOX_API,
+			version: MAIL_PLUS_MAILBOX_API_VERSION,
 			method: 'create',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { path: input.name, name: input.name },
 		}, 'entry.cgi');
 	}
@@ -349,10 +349,10 @@ export class MailClientClient {
 		const params: IDataObject = { id: input.mailboxId, conversation_view: input.conversationView ?? true };
 		if (input.name !== undefined) params.path = input.name;
 		return await this.synology.requestPath({
-			api: MAIL_MAILBOX_API,
-			version: MAIL_MAILBOX_API_VERSION,
+			api: MAIL_PLUS_MAILBOX_API,
+			version: MAIL_PLUS_MAILBOX_API_VERSION,
 			method: 'set',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params,
 		}, 'entry.cgi');
 	}
@@ -360,10 +360,10 @@ export class MailClientClient {
 	/** Delete a mailbox. */
 	async deleteMailbox(mailboxId: number): Promise<IDataObject> {
 		return await this.synology.requestPath({
-			api: MAIL_MAILBOX_API,
-			version: MAIL_MAILBOX_API_VERSION,
+			api: MAIL_PLUS_MAILBOX_API,
+			version: MAIL_PLUS_MAILBOX_API_VERSION,
 			method: 'delete',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify([mailboxId]), conversation_view: true },
 		}, 'entry.cgi');
 	}
@@ -374,7 +374,7 @@ export class MailClientClient {
 			api: 'SYNO.MailClient.Signature',
 			version: 1,
 			method: 'list',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: {},
 		}, 'entry.cgi');
 	}
@@ -385,7 +385,7 @@ export class MailClientClient {
 			api: 'SYNO.MailClient.Signature',
 			version: 1,
 			method: 'create',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { name: input.name, content: input.content, is_default: JSON.stringify(input.isDefault ?? false) },
 		}, 'entry.cgi');
 	}
@@ -396,7 +396,7 @@ export class MailClientClient {
 			api: 'SYNO.MailClient.Signature',
 			version: 1,
 			method: 'delete',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: { id: JSON.stringify(signatureIds) },
 		}, 'entry.cgi');
 	}
@@ -416,10 +416,10 @@ export class MailClientClient {
 		if (input.cc) params.cc = JSON.stringify(input.cc);
 		if (input.bcc) params.bcc = JSON.stringify(input.bcc);
 		return await this.synology.requestPath({
-			api: MAIL_DRAFT_API,
-			version: MAIL_DRAFT_API_VERSION,
+			api: MAIL_PLUS_DRAFT_API,
+			version: MAIL_PLUS_DRAFT_API_VERSION,
 			method: 'create',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params,
 		}, 'entry.cgi');
 	}
@@ -430,7 +430,7 @@ export class MailClientClient {
 			api: 'SYNO.MailClient.Filter',
 			version: 3,
 			method: 'list',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: {},
 		}, 'entry.cgi');
 	}
@@ -441,7 +441,7 @@ export class MailClientClient {
 			api: 'SYNO.MailClient.Setting.SMTP',
 			version: 2,
 			method: 'list',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: {},
 		}, 'entry.cgi');
 	}
@@ -452,7 +452,7 @@ export class MailClientClient {
 			api: 'SYNO.MailClient.MailTemplate',
 			version: 1,
 			method: 'list',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: {},
 		}, 'entry.cgi');
 	}
@@ -463,7 +463,7 @@ export class MailClientClient {
 			api: 'SYNO.MailClient.MailMerge',
 			version: 1,
 			method: 'list',
-			session: MAIL_CLIENT_SESSION,
+			session: MAIL_PLUS_CLIENT_SESSION,
 			params: {},
 		}, 'entry.cgi');
 	}

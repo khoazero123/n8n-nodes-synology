@@ -2,13 +2,26 @@
 
 Date: 2026-08-06
 
+## 0. Mail vs MailPlus (naming)
+
+Synology ships **two** DSM mail applications:
+
+| App | Package / node (this repo) | Status |
+|-----|---------------------------|--------|
+| **MailPlus** | `SynologyMailPlusClient`, `apps/mailPlusClient/` | **Implemented** |
+| **Mail** (legacy) | `SynologyMailClient`, `apps/mailClient/` (planned) | **Not implemented** |
+
+Code and docs in this repo use the **`MailPlus` / `mailPlus` prefix** for the current app.
+Synology's user API paths are still named `SYNO.MailClient.*` and the DSM login session is
+`MailClient` — that is MailPlus's official WebAPI name, **not** the legacy Mail app.
+
 ## 1. Executive Summary
 
 Synology MailPlus exposes two API packages on DSM:
 - **`SYNO.MailPlusServer.*`** (66 APIs) — admin/management: Account, Domain, Security, Queue, Statistic, SMTP config... Only usable with an admin session (`MailPlusServer`); regular users typically get `error 402`.
 - **`SYNO.MailClient.*`** (44 APIs) — user mail client: **Message v10, Thread v10, Mailbox v7, Draft v6, Attachment v8, Label v3, Filter v3, Signature v1, Setting.SMTP v2, Info v5...** This is the API set used by the n8n node (personal email operations).
 
-**Node scope:** MailClient only (per product requirement — does not cover MailPlusServer admin).
+**Node scope:** MailPlus user APIs (`SYNO.MailClient.*`) only — does not cover MailPlusServer admin or the legacy Synology Mail app.
 
 ## 2. Prerequisites
 
@@ -48,7 +61,7 @@ Synology MailPlus exposes two API packages on DSM:
 ## 4. n8n Node — `Synology MailPlus` (`synologyMailPlusClient`)
 
 Resources/operations:
-- **Mail**: Get Info
+- **MailPlus**: Get Info
 - **Thread**: List (mailbox/limit/offset/keyword)
 - **Message**: Get, Download Original (binary .eml), Download Attachment (binary)
 - **Mailbox**: List
@@ -57,7 +70,7 @@ Resources/operations:
 
 Credential: reuse `synologyApi` (baseUrl/username/password). Session `MailClient` is set automatically in the client.
 
-## 5. E2E (test/e2e-mailclient-n8n.js)
+## 5. E2E (test/e2e-mailplusclient-n8n.js)
 
 Workflow: Get Info → Mailboxes → Labels → Threads (inbox) → Message get → Draft create → Draft send. Live verification: database_ready, 7 mailboxes, threads with body_preview, message full content, draft created + sent (appears in Sent mailbox). Cleanup: delete test threads from inbox/sent (set_mailbox to trash then delete).
 
@@ -88,17 +101,17 @@ Params (filters modeled after n8n core Gmail trigger):
 - **Label**: server-side condition `label` (uses **numeric label ID**, not name) — verified
 - **Max Threads Per Poll**: default 50
 
-Verified 2026-08-06 (E2E `test/e2e-mailtrigger-filters.js`): each filter emits the correct target mail —
+Verified 2026-08-06 (E2E `test/e2e-mailplusclient-trigger-filters.js`): each filter emits the correct target mail —
 from ✅, unreadOnly ✅, readStatus ✅, starredOnly ✅, hasAttachmentOnly ✅, label ✅.
 **Bug fixed:** condition entries must be pushed before `JSON.stringify(condition)` (from/label are not sent if pushed after).
 Label create: `background_color` + `text_color` = hex **without `#`** (e.g. `ff0000`). set_star: `star=1/0` (number).
 
-Dedup note: static data (`mailSeen_<mailbox>`) persists between polls when the workflow is ACTIVE.
+Dedup note: static data (`mailPlusSeen_<mailbox>`) persists between polls when the workflow is ACTIVE.
 Manual trigger runs in n8n do NOT share static data → each manual run treats all threads as new.
 
-Output item: `{mailbox, mailboxId, thread, message, triggeredAt}`. Dedup via `getWorkflowStaticData('global')` key `mailSeen_<mailbox>`.
+Output item: `{mailbox, mailboxId, thread, message, triggeredAt}`. Dedup via `getWorkflowStaticData('global')` key `mailPlusSeen_<mailbox>`.
 
-Verified live 2026-08-06: send test email → poll emits new thread with correct subject (E2E `test/e2e-mailtrigger-n8n.js`).
+Verified live 2026-08-06: send test email → poll emits new thread with correct subject (E2E `test/e2e-mailplusclient-trigger-n8n.js`).
 
 ## 8. Extended Operations (2026-08-06, all E2E verified live)
 
@@ -132,4 +145,4 @@ Verified live 2026-08-06: send test email → poll emits new thread with correct
 - Filter: list (rules); SMTP Account: list; MailTemplate: list; MailMerge: list
 - Search: `Thread.list` + `keyword` top-level param (verified, no `is_search` needed)
 
-### E2E test: test/e2e-mailclient-extended.js — all pass live, clean cleanup.
+### E2E test: test/e2e-mailplusclient-extended.js — all pass live, clean cleanup.

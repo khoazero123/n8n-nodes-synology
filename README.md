@@ -34,7 +34,7 @@ Drive uses a separate Drive session internally and handles the required `id` and
 
 ### Synology MailPlus
 
-`Synology MailPlus` provides MailPlus operations. `Synology MailPlus Trigger` is a polling trigger for new mailbox threads (same package, `nodes/SynologyMailPlusClient/`).
+`Synology MailPlus` provides MailPlus operations (not the legacy Synology Mail app). `Synology MailPlus Trigger` is a polling trigger for new mailbox threads (same package, `nodes/SynologyMailPlusClient/`).
 
 Trigger options include:
 
@@ -83,7 +83,7 @@ Create a credential of type **Synology API**:
 - DSM password
 - Whether self-signed TLS certificates are allowed
 
-Each node selects the required Synology application session internally. Note Station uses the `NoteStation` session; Drive and MailPlus use their respective application APIs.
+Each node selects the required Synology application session internally. Note Station uses the `NoteStation` session; Drive and MailPlus use their respective application APIs. Legacy Synology Mail is not supported yet.
 
 ## Development
 

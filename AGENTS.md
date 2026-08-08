@@ -103,7 +103,11 @@ DSM — that session name refers to MailPlus, not the legacy Mail app.
 npm run release
 ```
 
-Tags use the `v*.*.*` convention (e.g. `v0.1.6`). Publishing runs in GitHub Actions with npm provenance — see [`.github/workflows/publish.yml`](.github/workflows/publish.yml).
+Tags use the `v*.*.*` convention (e.g. `v0.1.6`, `v0.2.1-dev.0`). Publishing runs in GitHub Actions with npm provenance — see [`.github/workflows/publish.yml`](.github/workflows/publish.yml).
+
+**Before creating or pushing any version tag**, `package.json` `version` must match the tag (strip the leading `v`). Example: tag `v0.2.1-dev.0` requires `"version": "0.2.1-dev.0"`. The Publish workflow fails at *Verify tag matches package version* if they differ. Commit the version bump (and changelog, when applicable) **before** tagging.
+
+**Agents:** If the user asks to tag or push a release tag, always check `package.json` first. If the requested tag does not match the current version, **stop and tell the user** — do not tag or push until `package.json` is updated (unless they explicitly want a mismatched tag for a one-off experiment).
 
 Do **not** bump `package.json` / CHANGELOG to a new version for fixes or updates if the current version is not yet published on npm. Keep working on the same version until it ships; only bump after that version is live on the registry.
 

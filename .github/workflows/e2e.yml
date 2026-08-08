@@ -90,6 +90,9 @@ jobs:
           docker logs n8n-synology-e2e
           exit 1
 
+      - name: Reset shared n8n E2E session cookie
+        run: rm -f /tmp/n8n-nodes-synology-e2e.cookie
+
       - name: Direct Drive API E2E
         run: python3 test/e2e-drive-direct.py
 

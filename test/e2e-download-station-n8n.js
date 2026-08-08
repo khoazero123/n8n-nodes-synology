@@ -4,6 +4,8 @@
 const http = require('http');
 const crypto = require('crypto');
 
+const { ensureN8nSession } = require('./n8nE2eAuth');
+
 const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-ds-e2e@example.com';
 const OWNER_PASSWORD = process.env.N8N_OWNER_PASSWORD || `N8nDsE2e-${crypto.randomBytes(12).toString('hex')}!`;
@@ -39,15 +41,14 @@ async function waitForRestApi() {
 
 async function setupOwnerAndLogin() {
 	await waitForRestApi();
-	const setup = await request('POST', '/rest/owner/setup', {
+	await ensureN8nSession({
+		request,
+		getCookie: () => cookie,
+		setCookie: (value) => { cookie = value; },
 		email: OWNER_EMAIL,
-		firstName: 'Synology',
-		lastName: 'DS E2E',
 		password: OWNER_PASSWORD,
-	}, false);
-	if (![200, 400].includes(setup.statusCode)) throw new Error(`Owner setup failed: ${setup.statusCode} ${setup.raw}`);
-	const login = await request('POST', '/rest/login', { emailOrLdapLoginId: OWNER_EMAIL, password: OWNER_PASSWORD }, false);
-	if (login.statusCode !== 200) throw new Error(`Login failed: ${login.statusCode} ${login.raw}`);
+		lastName: 'DS E2E',
+	});
 }
 
 function request(method, route, body, auth = true) {

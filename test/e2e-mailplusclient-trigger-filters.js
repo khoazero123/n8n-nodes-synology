@@ -4,6 +4,8 @@
 const http = require('http');
 const crypto = require('crypto');
 
+const { ensureN8nSession } = require('./n8nE2eAuth');
+
 const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-mail-filter-e2e@example.com';
 const OWNER_PASSWORD = process.env.N8N_OWNER_PASSWORD || `N8nMailFltr-${crypto.randomBytes(12).toString('hex')}!`;
@@ -80,10 +82,15 @@ async function main() {
 	const missing = REQUIRED.filter((k) => !process.env[k]);
 	if (missing.length) throw new Error(`Missing env: ${missing.join(', ')}`);
 	await waitForN8n();
-	const setup = await request('POST', '/rest/owner/setup', { email: OWNER_EMAIL, firstName: 'S', lastName: 'F', password: OWNER_PASSWORD }, {});
-	if (![200, 400].includes(setup.statusCode)) throw new Error(`setup ${setup.statusCode}`);
-	const login = await request('POST', '/rest/login', { emailOrLdapLoginId: OWNER_EMAIL, password: OWNER_PASSWORD }, {});
-	if (login.statusCode !== 200) throw new Error(`login ${login.statusCode}`);
+	await ensureN8nSession({
+		request: (method, route, body, useAuth = true) => request(method, route, body, useAuth && cookie ? { Cookie: cookie } : {}),
+		getCookie: () => cookie,
+		setCookie: (value) => { cookie = value; },
+		email: OWNER_EMAIL,
+		password: OWNER_PASSWORD,
+		firstName: 'S',
+		lastName: 'F',
+	});
 	const authHeaders = { Cookie: cookie };
 
 	let credential;

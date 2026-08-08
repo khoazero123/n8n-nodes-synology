@@ -8,6 +8,7 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { ensureN8nSession } = require('./n8nE2eAuth');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const N8N_VERSION = process.env.N8N_VERSION || 'latest';
@@ -111,15 +112,14 @@ async function waitForRestApi() {
 
 async function setupOwnerAndLogin() {
 	await waitForRestApi();
-	const setup = await request('POST', '/rest/owner/setup', {
+	await ensureN8nSession({
+		request,
+		getCookie: () => cookie,
+		setCookie: (value) => { cookie = value; },
 		email: OWNER_EMAIL,
-		firstName: 'Synology',
-		lastName: 'Drive E2E',
 		password: OWNER_PASSWORD,
-	}, false);
-	if (![200, 400].includes(setup.statusCode)) throw new Error(`Owner setup failed: ${setup.statusCode} ${setup.raw}`);
-	const login = await request('POST', '/rest/login', { emailOrLdapLoginId: OWNER_EMAIL, password: OWNER_PASSWORD }, false);
-	if (login.statusCode !== 200) throw new Error(`Login failed: ${login.statusCode} ${login.raw}`);
+		lastName: 'Drive E2E',
+	});
 }
 
 function request(method, route, body, auth = true) {

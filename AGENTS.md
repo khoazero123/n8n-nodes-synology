@@ -107,3 +107,4 @@ Follow [Keep a Changelog](https://keepachangelog.com/). The `## [Unreleased]` he
 - While developing after a version is on npm: append notes under `[Unreleased]`.
 - On release: move those notes into a new `## [x.y.z] - YYYY-MM-DD` section directly below `[Unreleased]`, leaving `[Unreleased]` empty (heading only).
 - If the current `package.json` version is not on npm yet: put fix/update notes under that existing version section (do not invent a new version or leave them only in `[Unreleased]`).
+- Document **user-facing / product** changes only. Do **not** mention CI/CD, GitHub Actions, E2E harnesses, test scripts, or internal workflow tooling in `CHANGELOG.md`.

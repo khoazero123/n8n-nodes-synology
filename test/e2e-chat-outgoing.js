@@ -6,6 +6,7 @@
 const http = require('http');
 const crypto = require('crypto');
 const { URL } = require('url');
+const { ensureN8nSession } = require('./n8nE2eAuth');
 
 const BASE = process.env.N8N_BASE_URL || 'http://127.0.0.1:5680';
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-chat-ow-e2e@example.com';
@@ -65,22 +66,14 @@ async function waitForRestApi() {
 
 async function setupOwnerAndLogin() {
 	await waitForRestApi();
-	const setup = await request('POST', '/rest/owner/setup', {
+	await ensureN8nSession({
+		request,
+		getCookie: () => cookie,
+		setCookie: (value) => { cookie = value; },
 		email: OWNER_EMAIL,
-		firstName: 'Synology',
+		password: OWNER_PASSWORD,
 		lastName: 'Chat OW E2E',
-		password: OWNER_PASSWORD,
-	}, false);
-	if (![200, 400].includes(setup.statusCode)) {
-		throw new Error(`Owner setup failed: ${setup.statusCode} ${setup.raw.slice(0, 300)}`);
-	}
-	const login = await request('POST', '/rest/login', {
-		emailOrLdapLoginId: OWNER_EMAIL,
-		password: OWNER_PASSWORD,
-	}, false);
-	if (login.statusCode !== 200 || !cookie) {
-		throw new Error(`Login failed: ${login.statusCode} ${login.raw.slice(0, 300)}`);
-	}
+	});
 }
 
 const MT = { name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} };

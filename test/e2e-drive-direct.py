@@ -16,6 +16,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from e2e_log import quiet, show, redact
+
 BASE_URL = os.environ['SYNO_BASE_URL'].rstrip('/')
 ACCOUNT = os.environ['SYNO_ACCOUNT']
 PASSWORD = os.environ['SYNO_PASS']
@@ -46,12 +51,6 @@ def request(method: str, path: str, query: dict | None = None, body: dict | byte
             return json.loads(raw.decode()), dict(resp.headers)
         return raw, dict(resp.headers)
 
-def show(name: str, obj) -> None:
-    text = json.dumps(obj, ensure_ascii=False) if not isinstance(obj, bytes) else f"<bytes {len(obj)}>"
-    if len(text) > 900:
-        text = text[:900] + '...<truncated>'
-    print(f"{name}: {text}")
-
 def require(ok: bool, message: str) -> None:
     if not ok:
         raise RuntimeError(message)
@@ -59,9 +58,10 @@ def require(ok: bool, message: str) -> None:
 def cleanup() -> None:
     try:
         request('POST', '/api/SynologyDrive/default/v1/files/delete', body={'permanent': True, 'files': [FOLDER]})
-        print('cleanup: deleted temp folder')
+        if not quiet():
+            print('cleanup: deleted temp folder')
     except Exception as exc:
-        print(f'cleanup warning: {exc}', file=sys.stderr)
+        print(f'cleanup warning: {redact(str(exc))}', file=sys.stderr)
 
 def main() -> int:
     login, _ = request('POST', '/api/SynologyDrive/default/v1/login', body={'format': 'sid', 'account': ACCOUNT, 'passwd': PASSWORD})
@@ -99,17 +99,20 @@ def main() -> int:
     show('delete folder', res)
     require(isinstance(res, dict) and res.get('success'), 'delete folder failed')
 
-    print(json.dumps({'success': True, 'folder': FOLDER, 'file': FILE}, ensure_ascii=False, indent=2))
+    if quiet():
+        print(json.dumps({'success': True}))
+    else:
+        print(json.dumps({'success': True, 'folder': FOLDER, 'file': FILE}, ensure_ascii=False, indent=2))
     return 0
 
 if __name__ == '__main__':
     try:
         raise SystemExit(main())
     except urllib.error.HTTPError as exc:
-        print('E2E_FAIL HTTP:', exc.code, exc.read().decode(errors='replace')[:1000], file=sys.stderr)
+        print('E2E_FAIL HTTP:', exc.code, redact(exc.read().decode(errors='replace')[:500]), file=sys.stderr)
         raise SystemExit(1)
     except Exception as exc:
-        print('E2E_FAIL:', exc, file=sys.stderr)
+        print('E2E_FAIL:', redact(str(exc)), file=sys.stderr)
         raise SystemExit(1)
     finally:
         cleanup()

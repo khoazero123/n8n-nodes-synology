@@ -11,6 +11,7 @@
  */
 const http = require('http');
 const { URL } = require('url');
+const { pass: e2ePass, fail: e2eFail } = require('./n8nE2eLog');
 
 process.env.N8N_BASE_URL = process.env.N8N_BASE_URL || 'http://localhost:5680';
 process.env.N8N_OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'admin@example.com';
@@ -18,8 +19,8 @@ process.env.N8N_OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'admin@example.com'
 const BASE = process.env.N8N_BASE_URL;
 const TYPE = 'CUSTOM.synologyPhotos';
 let pass = 0, fail = 0;
-const ok = (n, d) => { pass++; console.log(`✅ ${n}${d ? ': ' + String(d).slice(0, 170) : ''}`); };
-const bad = (n, e) => { fail++; console.log(`❌ ${n}: ${e && e.message ? e.message : String(e).slice(0, 220)}`); };
+const ok = (n, d) => { pass++; e2ePass(n, d); };
+const bad = (n, e) => { fail++; e2eFail(n, e); };
 
 function request(method, route, body, headers) {
 	return new Promise((resolve, reject) => {
@@ -82,8 +83,8 @@ async function runWorkflow(name, nodes, connections) {
 	const n = s['List Albums'];
 	const albums = Array.isArray(n?.json) ? n.json : (n?.json?.list || []);
 	if (n?.error) bad('List albums', new Error(n.error));
-	else if (albums.length > 0) { ok('List albums', `count=${albums.length}, ex: ${albums.slice(0, 2).map((a) => `${a.id}:${a.name}`).join(', ')}`); }
-	else bad('List albums', new Error(JSON.stringify(n?.json || n)));
+	else if (albums.length > 0) { ok('List albums'); }
+	else bad('List albums', new Error('no albums returned'));
 
 	const albumId = albums[0]?.id;
 
@@ -96,11 +97,33 @@ async function runWorkflow(name, nodes, connections) {
 		const items = Array.isArray(n2?.json) ? n2.json : (n2?.json?.list || []);
 		if (n2?.error) bad('List items', new Error(n2.error));
 		else if (items.length > 0) {
-			ok('List items', `count=${items.length}, ex: ${items[0].filename}`);
+			ok('List items');
 			itemId = items[0].id;
 			cacheKey = items[0]?.additional?.thumbnail?.cache_key || '';
-			ok('Cache key', cacheKey || '(none)');
-		} else bad('List items', new Error(JSON.stringify(n2?.json || n2)));
+			ok('Cache key');
+		} else bad('List items', new Error('no items returned'));
+	}
+
+	// 3. Album variants + folders
+	for (const [op, label] of [['listNormal', 'List normal albums'], ['listCondition', 'List conditional albums']]) {
+		const nodesA = [MT, { name: label, type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'album', operation: op, limit: 5 }, credentials: c() }];
+		const sa = await runWorkflow(`Photo ${label}`, nodesA, connect('Manual Trigger', label));
+		const na = sa[label];
+		if (na?.error) bad(label, new Error(na.error));
+		else ok(label);
+	}
+	for (const [op, label] of [['list', 'List personal folders'], ['listTeam', 'List shared folders']]) {
+		const nodesF = [MT, { name: label, type: TYPE, typeVersion: 1, position: [240, 0], parameters: { resource: 'folder', operation: op, limit: 5 }, credentials: c() }];
+		const sf = await runWorkflow(`Photo ${label}`, nodesF, connect('Manual Trigger', label));
+		const nf = sf[label];
+		if (nf?.error) {
+			// Shared space may be disabled on single-user NAS (Synology error 801).
+			if (op === 'listTeam' && /801/.test(String(nf.error))) {
+				ok(label, 'skipped (shared space not enabled)');
+			} else {
+				bad(label, new Error(nf.error));
+			}
+		} else ok(label);
 	}
 
 	// 4. Thumbnail (binary)
@@ -109,8 +132,8 @@ async function runWorkflow(name, nodes, connections) {
 		const s4 = await runWorkflow('Photo Thumb', nodes4, connect('Manual Trigger', 'Get Thumb'));
 		const n4 = s4['Get Thumb'];
 		if (n4?.error) bad('Get thumbnail', new Error(n4.error));
-		else if (n4?.binary?.data) ok('Get thumbnail', `binary data present`);
-		else bad('Get thumbnail', new Error(JSON.stringify(n4?.json || n4)));
+		else if (n4?.binary?.data) ok('Get thumbnail');
+		else bad('Get thumbnail', new Error('binary data missing'));
 	}
 
 	// 5. Download original (binary)
@@ -119,8 +142,8 @@ async function runWorkflow(name, nodes, connections) {
 		const s5 = await runWorkflow('Photo DL', nodes5, connect('Manual Trigger', 'Download'));
 		const n5 = s5['Download'];
 		if (n5?.error) bad('Download original', new Error(n5.error));
-		else if (n5?.binary?.data) ok('Download original', `binary size=${n5.json?.size || '?'} bytes`);
-		else bad('Download original', new Error(JSON.stringify(n5?.json || n5)));
+		else if (n5?.binary?.data) ok('Download original');
+		else bad('Download original', new Error('binary data missing'));
 	}
 
 	try { await request('DELETE', `/rest/credentials/${globalCredId}`, undefined, apiHeaders); } catch {}

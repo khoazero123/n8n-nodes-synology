@@ -4,6 +4,9 @@
 const http = require('http');
 const crypto = require('crypto');
 
+const { ensureN8nSession } = require('./n8nE2eAuth');
+const { detail, pass, warn, logRun } = require('./n8nE2eLog');
+
 const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-ds-e2e@example.com';
 const OWNER_PASSWORD = process.env.N8N_OWNER_PASSWORD || `N8nDsE2e-${crypto.randomBytes(12).toString('hex')}!`;
@@ -39,15 +42,14 @@ async function waitForRestApi() {
 
 async function setupOwnerAndLogin() {
 	await waitForRestApi();
-	const setup = await request('POST', '/rest/owner/setup', {
+	await ensureN8nSession({
+		request,
+		getCookie: () => cookie,
+		setCookie: (value) => { cookie = value; },
 		email: OWNER_EMAIL,
-		firstName: 'Synology',
-		lastName: 'DS E2E',
 		password: OWNER_PASSWORD,
-	}, false);
-	if (![200, 400].includes(setup.statusCode)) throw new Error(`Owner setup failed: ${setup.statusCode} ${setup.raw}`);
-	const login = await request('POST', '/rest/login', { emailOrLdapLoginId: OWNER_EMAIL, password: OWNER_PASSWORD }, false);
-	if (login.statusCode !== 200) throw new Error(`Login failed: ${login.statusCode} ${login.raw}`);
+		lastName: 'DS E2E',
+	});
 }
 
 function request(method, route, body, auth = true) {
@@ -161,14 +163,14 @@ async function main() {
 		const execution = await getExecution(run.executionId);
 		const data = parseExecutionData(execution);
 		const summary = Object.fromEntries(Object.entries(data.resultData.runData).map(([node, runs]) => [node, runs.map((item) => ({ status: item.executionStatus || (item.error ? 'error' : 'success'), error: item.error?.message, json: item.data?.main?.[0]?.map((entry) => entry.json), }))]));
-		console.log(JSON.stringify({ workflowId: workflow.id, executionId: run.executionId, status: execution.status, finished: execution.finished, lastNode: data.resultData.lastNodeExecuted, summary }, null, 2));
+		logRun({ workflowId: workflow.id, executionId: run.executionId, status: execution.status, finished: execution.finished, lastNode: data.resultData.lastNodeExecuted, summary });
 
 		// Verify info output
 		const infoOutput = summary['Get Info']?.[0]?.json?.[0];
 		if (!infoOutput || typeof infoOutput !== 'object') {
-			console.warn('⚠️  Info output did not contain an object');
+			warn('Info output did not contain an object');
 		} else {
-			console.log('✅ Download Station info returned');
+			pass('Download Station info returned');
 		}
 
 		// Verify config output
@@ -180,24 +182,24 @@ async function main() {
 		if (!configKeys.some((key) => Object.prototype.hasOwnProperty.call(configOutput, key))) {
 			throw new Error(`Get Config output did not contain a documented config field: ${JSON.stringify(configOutput)}`);
 		}
-		console.log('✅ Download Station config returned');
+		pass('Download Station config returned');
 
 		// Verify statistics output
 		const statOutput = summary['Get Statistics']?.[0]?.json?.[0];
 		if (!statOutput || statOutput.speed_download === undefined) {
-			console.warn('⚠️  Statistics output did not contain speed_download field — may be expected if no active downloads');
+			warn('Statistics output did not contain speed_download field');
 		} else {
-			console.log('✅ Statistics returned speed data');
+			pass('Statistics returned speed data');
 		}
 
 		// Verify task list output
 		const taskOutput = summary['Get Tasks']?.[0]?.json?.[0];
 		if (taskOutput && taskOutput.tasks) {
-			console.log(`✅ Task list returned ${taskOutput.tasks.length} tasks`);
+			pass(`Task list returned ${taskOutput.tasks.length} tasks`);
 		} else if (taskOutput && taskOutput.total !== undefined) {
-			console.log(`✅ Task list returned total=${taskOutput.total}`);
+			pass(`Task list returned total=${taskOutput.total}`);
 		} else {
-			console.warn('⚠️  Task list did not return expected shape — may be empty which is OK');
+			warn('Task list did not return expected shape');
 		}
 
 		// Verify Create Torrent output (destructive; only when a torrent fixture is provided)
@@ -207,9 +209,9 @@ async function main() {
 				throw new Error(`Create Torrent failed: ${torrentOutput.error}`);
 			}
 			const tjson = torrentOutput?.json?.[0];
-			console.log('✅ Create Torrent ran:', JSON.stringify(tjson));
+			detail('Create Torrent ran');
 			if (tjson && (tjson.task_id || tjson.list_id)) {
-				console.log('✅ Torrent task/list created');
+				pass('Torrent task/list created');
 				// cleanup: delete created task via node Delete
 				const tid = Array.isArray(tjson.task_id) ? tjson.task_id[0] : tjson.task_id;
 				if (tid) {
@@ -227,39 +229,39 @@ async function main() {
 					await getExecution(cleanupRun.executionId);
 					await api('POST', `/rest/workflows/${cleanupWorkflow.id}/archive`).catch(() => {});
 					await api('DELETE', `/rest/workflows/${cleanupWorkflow.id}`).catch(() => {});
-					console.log('🧹 Torrent task cleaned up');
+					detail('Torrent task cleaned up');
 				}
 			}
 			// Verify Download Source (binary torrent re-download)
 			const sourceOut = summary['Download Source']?.[0];
 			if (sourceOut?.status === 'error') throw new Error(`Download Source failed: ${sourceOut.error}`);
 			const srcJson = sourceOut?.json?.[0];
-			console.log('✅ Download Source ran:', JSON.stringify(srcJson));
+			detail('Download Source ran');
 			if (srcJson && typeof srcJson.size === 'number' && srcJson.size > 0) {
-				console.log(`✅ Download Source returned ${srcJson.size} bytes`);
+				pass(`Download Source returned ${srcJson.size} bytes`);
 			} else {
-				console.warn('⚠️  Download Source output missing size');
+				warn('Download Source output missing size');
 			}
 		} else {
-			console.log('⏭️  Skipping Create Torrent (set SYNO_TORRENT_PATH to test torrent upload)');
+			detail('Skipping Create Torrent (set SYNO_TORRENT_PATH to test torrent upload)');
 		}
 
 		// Verify Task List flow (create_list=true → getFiles → confirmDownload → status)
 		if (process.env.SYNO_TORRENT_PATH) {
 			const listFlow = await testTaskListFlow(api, getExecution, type, c, unique, process.env.SYNO_TORRENT_PATH);
-			if (listFlow) console.log('✅ Task List flow verified');
+			if (listFlow) pass('Task List flow verified');
 		}
 
 		// Verify Edit operation (create URL task → edit destination/priority → delete)
 		const editFlow = await testEditOperation(api, getExecution, type, c, unique);
-		if (editFlow) console.log('✅ Edit operation verified');
+		if (editFlow) pass('Edit operation verified');
 
 		// Verify BT search output
 		const searchOutput = summary['BT Search']?.[0]?.json?.[0];
 		if (searchOutput && typeof searchOutput === 'object' && Array.isArray(searchOutput.items) && typeof searchOutput.total === 'number') {
-			console.log(`✅ BT search returned total=${searchOutput.total}`);
+			pass(`BT search returned total=${searchOutput.total}`);
 		} else if (searchOutput && typeof searchOutput === 'object') {
-			console.warn(`⚠️  BT search output shape unexpected: ${JSON.stringify(searchOutput)}`);
+			warn('BT search output shape unexpected');
 		} else {
 			throw new Error('BT Search output did not contain an object');
 		}
@@ -315,19 +317,19 @@ async function testTaskListFlow(api, getExecution, type, c, unique, torrentPath)
 	const createOut = summary['Create Torrent List']?.[0];
 	if (createOut?.status === 'error') throw new Error(`Task List create failed: ${createOut.error}`);
 	const listId = createOut?.json?.[0]?.list_id?.[0];
-	if (!listId) { console.warn('⚠️  Task List flow: no list_id returned'); await api('DELETE', `/rest/workflows/${wf.id}`).catch(() => {}); return false; }
-	console.log('✅ Task List created:', listId);
+	if (!listId) { warn('Task List flow: no list_id returned'); await api('DELETE', `/rest/workflows/${wf.id}`).catch(() => {}); return false; }
+	pass('Task List created');
 	const filesOut = summary['Get Files']?.[0];
 	if (filesOut?.status === 'error') throw new Error(`Get Files failed: ${filesOut.error}`);
-	console.log('✅ Task List files:', JSON.stringify(filesOut?.json?.[0]?.files ?? []));
+	detail('Task List files listed');
 	const confirmOut = summary['Confirm Download']?.[0];
 	if (confirmOut?.status === 'error') throw new Error(`Confirm Download failed: ${confirmOut.error}`);
 	const pollingId = confirmOut?.json?.[0]?.task_id;
-	console.log('✅ Confirm Download polling id:', pollingId);
+	detail('Confirm Download polling');
 	const statusOut = summary['Get Status']?.[0];
 	if (statusOut?.status === 'error') throw new Error(`Get Status failed: ${statusOut.error}`);
 	const realTaskId = statusOut?.json?.[0]?.data?.task_id?.[0];
-	console.log('✅ Task List download status → task:', realTaskId);
+	detail('Task List download status');
 	// cleanup: delete real task + list via node operations
 	if (realTaskId) {
 		const delNodes = [
@@ -359,7 +361,7 @@ async function testEditOperation(api, getExecution, type, c, unique) {
 	const { wf, summary } = await runWorkflow(api, getExecution, type, c, `${unique}-edit`, nodes, connections, { 'Manual Trigger': [{ json: {} }] });
 	const editOut = summary['Edit Task']?.[0];
 	if (editOut?.status === 'error') throw new Error(`Edit failed: ${editOut.error}`);
-	console.log('✅ Edit ran:', JSON.stringify(editOut?.json?.[0]));
+	detail('Edit ran');
 	// cleanup: delete the created URL task
 	const tasksOut = summary['Get Tasks']?.[0]?.json?.[0]?.tasks ?? [];
 	const tid = tasksOut.length ? tasksOut[tasksOut.length - 1].id : undefined;

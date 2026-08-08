@@ -101,7 +101,7 @@ Params (filters modeled after n8n core Gmail trigger):
 - **Label**: server-side condition `label` (uses **numeric label ID**, not name) — verified
 - **Max Threads Per Poll**: default 50
 
-Verified 2026-08-06 (E2E `test/e2e-mailplusclient-trigger-filters.js`): each filter emits the correct target mail —
+Verified 2026-08-06 (E2E `test/e2e-mailplusclient-trigger-n8n.js`): each filter emits the correct target mail —
 from ✅, unreadOnly ✅, readStatus ✅, starredOnly ✅, hasAttachmentOnly ✅, label ✅.
 **Bug fixed:** condition entries must be pushed before `JSON.stringify(condition)` (from/label are not sent if pushed after).
 Label create: `background_color` + `text_color` = hex **without `#`** (e.g. `ff0000`). set_star: `star=1/0` (number).
@@ -145,4 +145,4 @@ Verified live 2026-08-06: send test email → poll emits new thread with correct
 - Filter: list (rules); SMTP Account: list; MailTemplate: list; MailMerge: list
 - Search: `Thread.list` + `keyword` top-level param (verified, no `is_search` needed)
 
-### E2E test: test/e2e-mailplusclient-extended.js — all pass live, clean cleanup.
+### E2E test: test/e2e-mailplusclient-n8n.js (extended section) — all pass live, clean cleanup.

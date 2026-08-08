@@ -3,6 +3,8 @@
 
 const crypto = require('crypto');
 const http = require('http');
+const { ensureN8nSession } = require('./n8nE2eAuth');
+const { logRun } = require('./n8nE2eLog');
 const PORT = Number(process.env.N8N_PORT || 5681);
 const HOST = process.env.N8N_HOST || '127.0.0.1';
 const BASE_URL = process.env.N8N_BASE_URL;
@@ -91,22 +93,13 @@ async function waitForRestApi() {
 
 async function setupOwnerAndLogin() {
 	await waitForRestApi();
-	const setup = await request('POST', '/rest/owner/setup', {
+	await ensureN8nSession({
+		request,
+		getCookie: () => authCookie,
+		setCookie: (value) => { authCookie = value; },
 		email: OWNER_EMAIL,
-		firstName: 'Synology',
-		lastName: 'E2E',
 		password: OWNER_PASSWORD,
-	}, false);
-	if (![200, 400].includes(setup.statusCode)) {
-		throw new Error(`Owner setup failed: ${setup.statusCode} ${setup.raw}`);
-	}
-	const login = await request('POST', '/rest/login', {
-		emailOrLdapLoginId: OWNER_EMAIL,
-		password: OWNER_PASSWORD,
-	}, false);
-	if (login.statusCode !== 200) {
-		throw new Error(`Login failed: ${login.statusCode} ${login.raw}`);
-	}
+	});
 }
 
 async function createSynologyCredential() {
@@ -130,9 +123,13 @@ async function createWorkflow(credential) {
 		{ name: 'Update Notebook', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [480, 0], parameters: { resource: 'notebook', operation: 'update', objectId: "={{ $('Create Notebook').item.json.object_id }}", title: `n8n updated notebook E2E ${unique}` }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
 		{ name: 'Create Note Full', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [720, 0], parameters: { resource: 'note', operation: 'create', parentId: "={{ $('Create Notebook').item.json.object_id }}", title: `n8n note E2E ${unique}`, content: `<div>n8n full note E2E ${unique}</div>`, brief: `n8n full note E2E ${unique}`, returnFullNote: true }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
 		{ name: 'Append Note', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [960, 0], parameters: { resource: 'note', operation: 'append', objectId: "={{ $('Create Note Full').item.json.object_id }}", content: '<div> appended</div>' }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Get Note', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1080, 0], parameters: { resource: 'note', operation: 'get', objectId: "={{ $('Create Note Full').item.json.object_id }}" }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Update Note', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1200, 0], parameters: { resource: 'note', operation: 'update', objectId: "={{ $('Create Note Full').item.json.object_id }}", title: `n8n note updated E2E ${unique}` }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'List Notes', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1320, 0], parameters: { resource: 'note', operation: 'getMany', parentId: "={{ $('Create Notebook').item.json.object_id }}", limit: 20, offset: 0 }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		{ name: 'Get Notebook', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1440, 0], parameters: { resource: 'notebook', operation: 'get', objectId: "={{ $('Create Notebook').item.json.object_id }}" }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
+		// Version get/restore need a healthy Synology Drive backend (error 114
+		// synodrive=0 when Drive is down). Keep list-only coverage in CI smoke.
 		{ name: 'List Note Versions', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1320, 0], parameters: { resource: 'version', operation: 'getMany', objectId: "={{ $('Create Note Full').item.json.object_id }}" }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
-		{ name: 'Get Note Version', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1440, 0], parameters: { resource: 'version', operation: 'get', objectId: "={{ $('Create Note Full').item.json.object_id }}", version: "={{ $('List Note Versions').item.json.versions[0].version }}" }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
-		{ name: 'Restore Note Version', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1560, 0], parameters: { resource: 'version', operation: 'restore', objectId: "={{ $('Create Note Full').item.json.object_id }}", version: "={{ $('List Note Versions').item.json.versions[0].version }}" }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
 		{ name: 'Share User', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1680, 0], parameters: { resource: 'share', operation: 'setUser', shareObjectId: "={{ $('Create Note Full').item.json.object_id }}", principalName: process.env.SYNO_SHARE_USER || 'nas', permission: 'ro' }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
 		{ name: 'Remove User Share', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1800, 0], parameters: { resource: 'share', operation: 'removeUser', shareObjectId: "={{ $('Create Note Full').item.json.object_id }}", principalName: process.env.SYNO_SHARE_USER || 'nas' }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
 		{ name: 'Share Group', type: 'CUSTOM.synologyNoteStation', typeVersion: 1, position: [1920, 0], parameters: { resource: 'share', operation: 'setGroup', shareObjectId: "={{ $('Create Note Full').item.json.object_id }}", principalName: process.env.SYNO_SHARE_GROUP || 'users', permission: 'ro' }, credentials: { synologyApi: { id: credential.id, name: credential.name } } },
@@ -199,7 +196,7 @@ async function main() {
 		error: run.error?.message,
 		json: run.data?.main?.[0]?.map((item) => item.json),
 	}))]));
-	console.log(JSON.stringify({ workflowId: workflow.id, executionId, status: execution.status, finished: execution.finished, lastNode: data.resultData.lastNodeExecuted, summary }, null, 2));
+	logRun({ workflowId: workflow.id, executionId, status: execution.status, finished: execution.finished, lastNode: data.resultData.lastNodeExecuted, summary });
 	if (execution.status !== 'success') {
 		throw new Error(`Execution failed: ${data.resultData.error?.message || execution.status}`);
 	}

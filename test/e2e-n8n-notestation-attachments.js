@@ -9,6 +9,8 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { URLSearchParams } = require('url');
+const { ensureN8nSession } = require('./n8nE2eAuth');
+const { logRun } = require('./n8nE2eLog');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const N8N_VERSION = process.env.N8N_VERSION || 'latest';
@@ -155,15 +157,17 @@ async function waitForRestApi() {
 
 async function setupOwnerAndLogin() {
 	await waitForRestApi();
-	const setup = await request('POST', '/rest/owner/setup', {
+	if (startedByScript) {
+		try { fs.unlinkSync(process.env.N8N_E2E_COOKIE_FILE || '/tmp/n8n-nodes-synology-e2e.cookie'); } catch {}
+	}
+	await ensureN8nSession({
+		request,
+		getCookie: () => cookie,
+		setCookie: (value) => { cookie = value; },
 		email: OWNER_EMAIL,
-		firstName: 'Synology',
-		lastName: 'Note Attachments E2E',
 		password: OWNER_PASSWORD,
-	}, false);
-	if (![200, 400].includes(setup.statusCode)) throw new Error(`Owner setup failed: ${setup.statusCode} ${setup.raw}`);
-	const login = await request('POST', '/rest/login', { emailOrLdapLoginId: OWNER_EMAIL, password: OWNER_PASSWORD }, false);
-	if (login.statusCode !== 200) throw new Error(`Login failed: ${login.statusCode} ${login.raw}`);
+		lastName: 'Note Attachments E2E',
+	});
 }
 
 function parseExecutionData(execution) {
@@ -303,7 +307,7 @@ async function main() {
 		createdAttachmentVersion = firstJson(data, 'Get Note After Upload')?.ver;
 		const verification = firstJson(data, 'Verify Download Bytes');
 		const summary = Object.fromEntries(Object.entries(data.resultData.runData).map(([node, runs]) => [node, runs.map((item) => ({ status: item.executionStatus || (item.error ? 'error' : 'success'), error: item.error?.message, json: item.data?.main?.[0]?.map((entry) => entry.json), binaryKeys: item.data?.main?.[0]?.map((entry) => Object.keys(entry.binary || {})) }))]));
-		console.log(JSON.stringify({ workflowId: workflow.id, executionId: run.executionId, status: execution.status, finished: execution.finished, lastNode: data.resultData.lastNodeExecuted, createdNotebookId, createdNoteId, createdAttachmentFileId, verification, summary }, null, 2));
+		logRun({ workflowId: workflow.id, executionId: run.executionId, status: execution.status, finished: execution.finished, lastNode: data.resultData.lastNodeExecuted, createdNotebookId, createdNoteId, createdAttachmentFileId, verification, summary });
 		if (execution.status !== 'success') throw new Error(`Execution failed: ${data.resultData.error?.message || execution.status}`);
 		if (!createdAttachmentFileId) throw new Error(`List Attachments did not return a file_id: ${JSON.stringify(listOutput)}`);
 		if (!verification?.bytesMatch || verification.text !== ATTACHMENT_BYTES) throw new Error(`Verify Download Bytes did not confirm expected bytes: ${JSON.stringify(verification)}`);

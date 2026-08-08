@@ -8,6 +8,8 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { ensureN8nSession } = require('./n8nE2eAuth');
+const { logRun } = require('./n8nE2eLog');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const N8N_VERSION = process.env.N8N_VERSION || 'latest';
@@ -111,15 +113,14 @@ async function waitForRestApi() {
 
 async function setupOwnerAndLogin() {
 	await waitForRestApi();
-	const setup = await request('POST', '/rest/owner/setup', {
+	await ensureN8nSession({
+		request,
+		getCookie: () => cookie,
+		setCookie: (value) => { cookie = value; },
 		email: OWNER_EMAIL,
-		firstName: 'Synology',
-		lastName: 'Drive E2E',
 		password: OWNER_PASSWORD,
-	}, false);
-	if (![200, 400].includes(setup.statusCode)) throw new Error(`Owner setup failed: ${setup.statusCode} ${setup.raw}`);
-	const login = await request('POST', '/rest/login', { emailOrLdapLoginId: OWNER_EMAIL, password: OWNER_PASSWORD }, false);
-	if (login.statusCode !== 200) throw new Error(`Login failed: ${login.statusCode} ${login.raw}`);
+		lastName: 'Drive E2E',
+	});
 }
 
 function request(method, route, body, auth = true) {
@@ -206,8 +207,10 @@ async function main() {
 			{ name: 'Manual Trigger', type: 'n8n-nodes-base.manualTrigger', typeVersion: 1, position: [0, 0], parameters: {} },
 			{ name: 'Create Folder', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'file', operation: 'createFileOrFolder', createFileOrFolderType: 'folder', path: folder }, credentials: c },
 			{ name: 'Create File', type, typeVersion: 1, position: [480, 0], parameters: { resource: 'file', operation: 'createFileOrFolder', createFileOrFolderType: 'file', path: file, createFileOrFolderFileContent: text }, credentials: c },
-			{ name: 'List Folder', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'file', operation: 'getFiles', path: folder, limit: 20, offset: 0, sortBy: 'name', sortDirection: 'asc', filter: {} }, credentials: c },
-			{ name: 'Download File', type, typeVersion: 1, position: [960, 0], parameters: { resource: 'file', operation: 'downloadFile', path: file }, credentials: c },
+			{ name: 'Search File', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'file', operation: 'search', keyword: 'hello.txt', limit: 20, offset: 0, sortBy: 'name', sortDirection: 'asc' }, credentials: c },
+			{ name: 'List Folder', type, typeVersion: 1, position: [840, 0], parameters: { resource: 'file', operation: 'getFiles', path: folder, limit: 20, offset: 0, sortBy: 'name', sortDirection: 'asc', filter: {} }, credentials: c },
+			{ name: 'List Recent', type, typeVersion: 1, position: [960, 0], parameters: { resource: 'file', operation: 'listItemsRecentlyUsed' }, credentials: c },
+			{ name: 'Download File', type, typeVersion: 1, position: [1080, 0], parameters: { resource: 'file', operation: 'downloadFile', path: file }, credentials: c },
 			{ name: 'Delete Folder', type, typeVersion: 1, position: [1200, 0], parameters: { resource: 'file', operation: 'deleteFileOrFolder', path: folder, deleteFileOrFolderPermanent: true }, credentials: c },
 		];
 		const connections = {};
@@ -227,9 +230,10 @@ async function main() {
 		const execution = await getExecution(run.executionId);
 		const data = parseExecutionData(execution);
 		const summary = Object.fromEntries(Object.entries(data.resultData.runData).map(([node, runs]) => [node, runs.map((item) => ({ status: item.executionStatus || (item.error ? 'error' : 'success'), error: item.error?.message, json: item.data?.main?.[0]?.map((entry) => entry.json), binaryKeys: item.data?.main?.[0]?.map((entry) => Object.keys(entry.binary || {})) }))]));
-		console.log(JSON.stringify({ workflowId: workflow.id, executionId: run.executionId, status: execution.status, finished: execution.finished, lastNode: data.resultData.lastNodeExecuted, summary }, null, 2));
+		logRun({ workflowId: workflow.id, executionId: run.executionId, status: execution.status, finished: execution.finished, lastNode: data.resultData.lastNodeExecuted, summary });
 		if (execution.status !== 'success') throw new Error(`Execution failed: ${data.resultData.error?.message || execution.status}`);
 		if (!JSON.stringify(summary['List Folder']).includes('hello.txt')) throw new Error('List Folder output did not include created hello.txt');
+		if (!JSON.stringify(summary['Search File']).includes('hello.txt')) throw new Error('Search did not find created hello.txt');
 		if (!JSON.stringify(summary['Download File']).includes('success')) throw new Error('Download File node did not run successfully');
 	} finally {
 		if (workflow?.id) await request('DELETE', `/rest/workflows/${workflow.id}`);

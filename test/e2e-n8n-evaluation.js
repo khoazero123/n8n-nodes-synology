@@ -5,6 +5,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { pass: e2ePass, logRun } = require('./n8nE2eLog');
 
 const BASE_URL = process.env.N8N_BASE_URL || 'http://127.0.0.1:5680';
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -65,8 +66,9 @@ async function main() {
 		let result;
 		for (let i = 0; i < 90; i++) { result = await api('GET', `/rest/workflows/${workflow.id}/test-runs/${run.testRunId || run.id}`); if (['completed', 'error', 'cancelled'].includes(result.status)) break; await sleep(1000); }
 		const cases = await api('GET', `/rest/workflows/${workflow.id}/test-runs/${run.testRunId || run.id}/test-cases`);
-		console.log(JSON.stringify({ mode: 'official-n8n-evaluation', workflowId: workflow.id, evaluationConfigId: config.id, testRun: result, testCases: cases }, null, 2));
-		if (result.status !== 'completed' || result.finalResult !== 'success') throw new Error(`Official evaluation failed: ${JSON.stringify(result)}`);
+		logRun({ workflowId: workflow.id, evaluationConfigId: config.id, status: result?.status, finalResult: result?.finalResult, testCaseCount: Array.isArray(cases) ? cases.length : undefined });
+		e2ePass('Official n8n evaluation');
+		if (result.status !== 'completed' || result.finalResult !== 'success') throw new Error('Official evaluation failed');
 	} finally {
 		if (workflow?.id) await request('DELETE', `/rest/workflows/${workflow.id}`);
 		if (table?.id) await request('DELETE', `/rest/projects/${projectId}/data-tables/${table.id}`);

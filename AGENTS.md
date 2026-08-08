@@ -33,29 +33,28 @@ CI runs the full suite via [`.github/workflows/e2e.yml`](.github/workflows/e2e.y
 
 ### Direct API tests (no n8n)
 
-| Test | Command |
-|------|---------|
-| Synology Drive API | `python3 test/e2e-drive-direct.py` |
-| Download Station API | `python3 test/e2e-download-station-core.py` |
+| Test | Command | Node / layer |
+|------|---------|--------------|
+| Synology Drive API | `python3 test/e2e-drive-direct.py` | Drive REST transport |
+| Download Station API | `python3 test/e2e-download-station-core.py` | DS WebAPI transport |
+| Note Station API | `python3 test/e2e-note-station-core.py` | Note Station WebAPI transport |
 
 ### n8n workflow tests
 
-| Test | Command |
-|------|---------|
-| Note Station (basic) | `node test/e2e-n8n-workflow.js` |
-| Note Station (expanded) | `node test/e2e-n8n-notestation-expanded.js` |
-| Note Station (attachments) | `node test/e2e-n8n-notestation-attachments.js` |
-| Note Station (evaluation) | `node test/e2e-n8n-evaluation.js` |
-| Synology Drive | `node test/e2e-drive-n8n-workflow.js` |
-| Download Station | `node test/e2e-download-station-n8n.js` |
-| MailPlus client | `node test/e2e-mailplusclient-n8n.js` |
-| MailPlus client (extended) | `node test/e2e-mailplusclient-extended.js` |
-| MailPlus trigger | `node test/e2e-mailplusclient-trigger-n8n.js` |
-| MailPlus trigger filters | `node test/e2e-mailplusclient-trigger-filters.js` |
-| Synology Chat | `node test/e2e-chat-n8n.js` |
-| Chat outgoing webhook CRUD | `node test/e2e-chat-outgoing.js` |
-| Chat trigger | `node test/e2e-chat-trigger-n8n.js` |
-| Synology Photos | `node test/e2e-photos-n8n.js` |
+| Test | Command | Coverage |
+|------|---------|----------|
+| Note Station (expanded) | `node test/e2e-n8n-notestation-expanded.js` | notebook/note/share/tag/info/version + get/update/list |
+| Note Station (attachments) | `node test/e2e-n8n-notestation-attachments.js` | attachment upload/list/download/delete |
+| Note Station (evaluation) | `node test/e2e-n8n-evaluation.js` | n8n evaluation trigger + basic note CRUD |
+| Synology Drive | `node test/e2e-drive-n8n-workflow.js` | file CRUD, search, recent, download |
+| Download Station | `node test/e2e-download-station-n8n.js` | info/config/statistics/tasks/BT search/edit (+ optional torrent) |
+| MailPlus client | `node test/e2e-mailplusclient-n8n.js` | smoke chain + extended ops (thread/message/draft/signature/label/mailbox) |
+| MailPlus trigger | `node test/e2e-mailplusclient-trigger-n8n.js` | activation, poll emission, filter matrix |
+| Synology Chat (full node) | `node test/e2e-chat-n8n.js` | webhook, message, channel, chatbot |
+| Chat outgoing webhook CRUD | `node test/e2e-chat-outgoing.js` | outgoingWebhook CRUD |
+| Chat trigger | `node test/e2e-chat-trigger-n8n.js` | webhook trigger + filters |
+| Chat encrypted channel | `node test/e2e-chat-encrypted.js` | channel.create (encrypted); NAS-specific |
+| Synology Photos | `node test/e2e-photos-n8n.js` | album/folder/item list, thumbnail, download |
 
 ### CI subset (smoke suite)
 
@@ -64,25 +63,32 @@ Equivalent to the steps in `e2e.yml`:
 ```bash
 python3 test/e2e-drive-direct.py
 node test/e2e-drive-n8n-workflow.js
-node test/e2e-n8n-workflow.js
 node test/e2e-n8n-notestation-expanded.js
 node test/e2e-chat-outgoing.js
 node test/e2e-chat-trigger-n8n.js
-node test/e2e-chat-n8n.js
 node test/e2e-mailplusclient-trigger-n8n.js
-node test/e2e-mailplusclient-trigger-filters.js
-node test/e2e-download-station-n8n.js
-```
-
-Optional (when `SYNO_NOTE_ATTACHMENT_E2E=true` in CI):
-
-```bash
+node test/e2e-mailplusclient-n8n.js
 node test/e2e-n8n-notestation-attachments.js
+node test/e2e-download-station-n8n.js
+node test/e2e-photos-n8n.js
 ```
+
+MailPlus trigger fixtures use the registrable domain from `SYNO_BASE_URL` (override with `SYNO_MAIL_DOMAIN`), inbox user from `SYNO_MAIL_USER` → `SYNO_ACCOUNT`; optional `SYNO_SMTP_HOST` when SMTP is not on the NAS hostname.
+
+CI sets `SYNO_E2E_QUIET=true` so E2E scripts log only pass/fail lines (no mail content, NAS paths, or workflow payloads). Use `SYNO_E2E_VERBOSE=true` locally for full debug output.
 
 ### MailPlus filter fixtures
 
 Set `SYNO_MAIL_FILTER_FIXTURES=true` when starred, attachment, and label fixtures exist on the target NAS.
+
+### Operations not covered by E2E (intentional)
+
+- Note Station: encryption, export/import, shelf, version restore (needs healthy Drive backend)
+- Drive: labels, team folders, sharing, copy, upload multipart, getFileOrFolderInfo (legacy API; error 101 on some DSM builds)
+- Download Station: pause/resume (destructive direct test only)
+- MailPlus: message download/star/move, draft forward, mailbox rename
+- Chat: incoming webhook in CI (covered by optional `e2e-chat-n8n.js`)
+- Photos: `folder.listTeam` when shared space is disabled (skipped with Synology error 801)
 
 ## Mail vs MailPlus naming
 
@@ -98,3 +104,14 @@ npm run release
 ```
 
 Tags use the `v*.*.*` convention (e.g. `v0.1.6`). Publishing runs in GitHub Actions with npm provenance — see [`.github/workflows/publish.yml`](.github/workflows/publish.yml).
+
+Do **not** bump `package.json` / CHANGELOG to a new version for fixes or updates if the current version is not yet published on npm. Keep working on the same version until it ships; only bump after that version is live on the registry.
+
+### Changelog
+
+Follow [Keep a Changelog](https://keepachangelog.com/). The `## [Unreleased]` heading is permanent — never delete it.
+
+- While developing after a version is on npm: append notes under `[Unreleased]`.
+- On release: move those notes into a new `## [x.y.z] - YYYY-MM-DD` section directly below `[Unreleased]`, leaving `[Unreleased]` empty (heading only).
+- If the current `package.json` version is not on npm yet: put fix/update notes under that existing version section (do not invent a new version or leave them only in `[Unreleased]`).
+- Document **user-facing / product** changes only. Do **not** mention CI/CD, GitHub Actions, E2E harnesses, test scripts, or internal workflow tooling in `CHANGELOG.md`.

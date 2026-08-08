@@ -20,6 +20,10 @@ from urllib.error import HTTPError
 import ssl
 import time
 
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from e2e_log import quiet, ok, fail_line, step, redact
+
 BASE_URL = os.environ.get("SYNO_BASE_URL", "").rstrip("/")
 ACCOUNT = os.environ.get("SYNO_ACCOUNT", "")
 PASSWORD = os.environ.get("SYNO_PASS", "")
@@ -32,10 +36,7 @@ failures = 0
 def fail(msg):
     global failures
     failures += 1
-    print(f"  ❌ FAIL: {msg}")
-
-def ok(msg):
-    print(f"  ✅ {msg}")
+    fail_line(msg)
 
 def api_request(path, params, json_response=True, headers=None):
     """Send a POST request to the Synology WebAPI."""
@@ -63,12 +64,15 @@ def main():
         print("❌ Missing environment variables: SYNO_BASE_URL, SYNO_ACCOUNT, SYNO_PASS")
         sys.exit(1)
 
-    print(f"🧪 Synology Download Station Direct API E2E")
-    print(f"   NAS: {BASE_URL}")
-    print(f"   Test prefix: {TEST_PREFIX}")
+    if quiet():
+        print("Synology Download Station Direct API E2E")
+    else:
+        print(f"🧪 Synology Download Station Direct API E2E")
+        print(f"   NAS: {BASE_URL}")
+        print(f"   Test prefix: {TEST_PREFIX}")
 
     # 1. Login
-    print("\n📡 1. Login (SYNO.API.Auth v7, session=DownloadStation)...")
+    step("\n📡 1. Login (SYNO.API.Auth v7, session=DownloadStation)...")
     login_resp = api_request("entry.cgi", {
         "api": "SYNO.API.Auth",
         "version": "7",
@@ -85,7 +89,7 @@ def main():
     ok(f"Login OK, sid={sid[:8]}...")
 
     # 2. API Discovery
-    print("\n📡 2. API Discovery (SYNO.API.Info)...")
+    step("\n📡 2. API Discovery (SYNO.API.Info)...")
     info_resp = api_request("query.cgi", {
         "api": "SYNO.API.Info",
         "version": "1",
@@ -100,7 +104,7 @@ def main():
         fail(f"API Info query failed: {info_resp.get('error')}")
 
     # 3. Get Download Station info
-    print("\n📡 3. Info (SYNO.DownloadStation.Info v2 getinfo, read-only)...")
+    step("\n📡 3. Info (SYNO.DownloadStation.Info v2 getinfo, read-only)...")
     info_get_resp = api_request("DownloadStation/info.cgi", {
         "api": "SYNO.DownloadStation.Info",
         "version": "2",
@@ -117,7 +121,7 @@ def main():
         fail(f"Info getinfo failed: {info_get_resp.get('error')}")
 
     # 4. Get Download Station config
-    print("\n📡 4. Config (SYNO.DownloadStation.Info v2 getconfig, read-only)...")
+    step("\n📡 4. Config (SYNO.DownloadStation.Info v2 getconfig, read-only)...")
     config_resp = api_request("DownloadStation/info.cgi", {
         "api": "SYNO.DownloadStation.Info",
         "version": "2",
@@ -135,7 +139,7 @@ def main():
         fail(f"Info getconfig failed: {config_resp.get('error')}")
 
     # 5. Get Statistics
-    print("\n📡 5. Statistics (SYNO.DownloadStation.Statistic v1)...")
+    step("\n📡 5. Statistics (SYNO.DownloadStation.Statistic v1)...")
     stat_resp = api_request("DownloadStation/statistic.cgi", {
         "api": "SYNO.DownloadStation.Statistic",
         "version": "1",
@@ -149,7 +153,7 @@ def main():
         fail(f"Statistics failed: {stat_resp.get('error')}")
 
     # 6. List tasks (safe read-only check)
-    print("\n📡 6. List Tasks (read-only)...")
+    step("\n📡 6. List Tasks (read-only)...")
     list_resp = api_request("DownloadStation/task.cgi", {
         "api": "SYNO.DownloadStation.Task",
         "version": "3",
@@ -164,7 +168,7 @@ def main():
     task_id = None
 
     # 7. BT search (safe read-only check)
-    print("\n📡 7. BT Search (SYNO.DownloadStation.BTSearch v1, read-only)...")
+    step("\n📡 7. BT Search (SYNO.DownloadStation.BTSearch v1, read-only)...")
     bt_resp = api_request("DownloadStation/btsearch.cgi", {
         "api": "SYNO.DownloadStation.BTSearch",
         "version": "1",

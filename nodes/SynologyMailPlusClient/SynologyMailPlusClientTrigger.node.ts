@@ -1,7 +1,6 @@
 import type { IDataObject, INodeExecutionData, INodeType, INodeTypeDescription, IPollFunctions } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
 import { MailPlusClient } from '../../apps/mailPlusClient/MailPlusClient';
-import { MAIL_PLUS_MAILBOX_ID_MAP } from '../../apps/mailPlusClient/constants';
 import { pollNewMailPlusThreads } from '../../apps/mailPlusClient/mailPlusPollUtils';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
@@ -36,8 +35,19 @@ export class SynologyMailPlusClientTrigger implements INodeType {
 				],
 			},
 			{
-				displayName: 'Mailbox', name: 'mailbox', type: 'options', default: 'inbox',
-				options: Object.keys(MAIL_PLUS_MAILBOX_ID_MAP).map((name) => ({ name: name[0].toUpperCase() + name.slice(1), value: name })),
+				displayName: 'Mailbox',
+				name: 'mailbox',
+				type: 'options',
+				options: [
+					{ name: 'Archived', value: 'archived' },
+					{ name: 'Drafts', value: 'drafts' },
+					{ name: 'Inbox', value: 'inbox' },
+					{ name: 'Scheduled', value: 'scheduled' },
+					{ name: 'Sent', value: 'sent' },
+					{ name: 'Spam', value: 'spam' },
+					{ name: 'Trash', value: 'trash' },
+				],
+				default: 'inbox',
 			},
 			{ displayName: 'Search Keyword', name: 'keyword', type: 'string', default: '', description: 'Optional server-side keyword filter' },
 			{ displayName: 'From (Sender)', name: 'from', type: 'string', default: '', description: 'Optional sender filter' },

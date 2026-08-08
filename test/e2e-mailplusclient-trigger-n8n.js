@@ -1,8 +1,12 @@
 #!/usr/bin/env node
-/* Synology MailPlus Trigger n8n E2E: send a test email, activate poll trigger, verify emission. */
+/* Synology MailPlus Trigger n8n E2E: activation, poll emission, and filter matrix. */
  
 const http = require('http');
 const crypto = require('crypto');
+
+const { ensureN8nSession, waitForExecution } = require('./n8nE2eAuth');
+const { sendTestEmail, mailAddress, mailboxAddress } = require('./n8nE2eSmtp');
+const { detail, pass, warn, logRun } = require('./n8nE2eLog');
 
 const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-mail-trigger-e2e@example.com';
@@ -52,15 +56,59 @@ async function waitForN8n() {
 	throw new Error('n8n not ready');
 }
 
+async function testTriggerFilter(authHeaders, credId, extraParams, expectedSubject, label) {
+	const type = 'CUSTOM.synologyMailPlusClientTrigger';
+	const triggerNode = {
+		name: 'Mail Trigger', type, typeVersion: 1, position: [0, 0],
+		parameters: { mailbox: 'inbox', keyword: '', maxThreads: 100, ...extraParams },
+		credentials: { synologyApi: { id: credId, name: 'x' } },
+	};
+	const wf = await request('POST', '/rest/workflows', {
+		name: `Mail Flt ${label} ${Date.now()}`,
+		nodes: [triggerNode],
+		connections: {},
+		active: false,
+		settings: { executionOrder: 'v1' },
+		staticData: null,
+		pinData: {},
+		tags: [],
+	}, authHeaders);
+	const wfId = wf.json.data.id;
+	const run = await request('POST', `/rest/workflows/${wfId}/run`, { triggerToStartFrom: { name: 'Mail Trigger' } }, authHeaders);
+	const execId = run.json?.data?.executionId;
+	detail(`[${label}] run:`, run.statusCode, execId);
+	const getExecution = (id) => request('GET', `/rest/executions/${id}?includeData=true`, undefined, authHeaders);
+	let emitted = [];
+	if (execId) {
+		const { runData } = await waitForExecution(getExecution, execId);
+		for (const [, runs] of Object.entries(runData)) {
+			for (const item of runs[0]?.data?.main?.[0] || []) {
+				if (item.json?.thread) emitted.push(item.json.thread);
+			}
+		}
+	}
+	detail(`[${label}] emitted ${emitted.length}`);
+	const hasExpected = emitted.some((t) => (t.message?.[0]?.subject || '') === expectedSubject);
+	if (hasExpected) pass(`[${label}] filter emitted the expected email`);
+	else warn(`[${label}] expected email not in emissions`);
+	await request('POST', `/rest/workflows/${wfId}/archive`, undefined, authHeaders).catch(() => {});
+	await request('DELETE', `/rest/workflows/${wfId}`, undefined, authHeaders).catch(() => {});
+	return hasExpected;
+}
+
 async function main() {
 	const missing = REQUIRED.filter((k) => !process.env[k]);
 	if (missing.length) throw new Error(`Missing env: ${missing.join(', ')}`);
 	await waitForN8n();
-	// owner setup + login
-	const setup = await request('POST', '/rest/owner/setup', { email: OWNER_EMAIL, firstName: 'S', lastName: 'T', password: OWNER_PASSWORD }, {});
-	if (![200, 400].includes(setup.statusCode)) throw new Error(`setup ${setup.statusCode}`);
-	const login = await request('POST', '/rest/login', { emailOrLdapLoginId: OWNER_EMAIL, password: OWNER_PASSWORD }, {});
-	if (login.statusCode !== 200) throw new Error(`login ${login.statusCode} ${login.raw}`);
+	await ensureN8nSession({
+		request: (method, route, body, useAuth = true) => request(method, route, body, useAuth && cookie ? { Cookie: cookie } : {}),
+		getCookie: () => cookie,
+		setCookie: (value) => { cookie = value; },
+		email: OWNER_EMAIL,
+		password: OWNER_PASSWORD,
+		firstName: 'S',
+		lastName: 'T',
+	});
 	const authHeaders = { Cookie: cookie };
 
 	let credential, workflow;
@@ -77,9 +125,10 @@ async function main() {
 		}, authHeaders);
 		const credId = credential.json.data.id;
 		const type = 'CUSTOM.synologyMailPlusClientTrigger';
+		const senderFilter = mailAddress('sender-filter');
 		const triggerNode = {
 			name: 'Mail Trigger', type, typeVersion: 1, position: [0, 0],
-			parameters: { mailbox: 'inbox', keyword: '', from: 'sender-filter@example.com', unreadOnly: false, readStatus: 'both', maxThreads: 50 },
+			parameters: { mailbox: 'inbox', keyword: '', from: senderFilter, unreadOnly: false, readStatus: 'both', maxThreads: 50 },
 			credentials: { synologyApi: { id: credId, name: 'x' } },
 		};
 		workflow = await request('POST', '/rest/workflows', {
@@ -93,7 +142,7 @@ async function main() {
 			tags: [],
 		}, authHeaders);
 		const wfId = workflow.json.data.id;
-		console.log('workflow created:', wfId);
+		detail('workflow created:', wfId);
 
 		// 1. Activate the workflow first, then send a fresh test email so activation
 		// cannot consume the fixture before the explicit trigger poll below.
@@ -103,82 +152,63 @@ async function main() {
 		if (!versionId) throw new Error(`workflow draft has no versionId: ${draft.raw.slice(0, 300)}`);
 		const act = await request('POST', `/rest/workflows/${wfId}/activate`, { versionId }, authHeaders);
 		if (act.statusCode >= 300) throw new Error(`activation failed ${act.statusCode}: ${act.raw}`);
-		console.log('activated:', act.statusCode);
+		detail('activated:', act.statusCode);
 		// Deactivate immediately so the scheduled poll cannot consume the fixture;
 		// the following manual run exercises the same poll() implementation.
 		const deact = await request('POST', `/rest/workflows/${wfId}/deactivate`, {}, authHeaders);
 		if (deact.statusCode >= 300) throw new Error(`deactivation failed ${deact.statusCode}: ${deact.raw}`);
-		const smtp = await sendTestEmail();
-		console.log('test email sent:', smtp);
-		await sleep(3000);
-		// n8n polling trigger: run the workflow manually to force a poll
+		const smtp = await sendTestEmail({
+			from: senderFilter,
+			to: mailboxAddress(),
+			subject: 'MailPlus Trigger Test',
+			body: 'Trigger node test body from n8n E2E',
+		});
+		detail('test email sent');
+		await sleep(5000);
 		const run = await request('POST', `/rest/workflows/${wfId}/run`, { triggerToStartFrom: { name: 'Mail Trigger' } }, authHeaders);
-		console.log('run:', run.statusCode, run.raw.slice(0, 150));
-		await sleep(8000);
-		// Note: manual trigger runs do not share workflow static data with the
-		// activated poll loop, so dedup is not asserted here. Production (active
-		// workflow) persists seen ids between polls via static data.
 		const execId = run.json?.data?.executionId;
+		detail('run:', run.statusCode, execId);
+		if (!execId) throw new Error('manual run returned no executionId');
 
-		// 3. Check the trigger execution for emitted data
+		const getExecution = (id) => request('GET', `/rest/executions/${id}?includeData=true`, undefined, authHeaders);
+		const { runData } = await waitForExecution(getExecution, execId);
 		let emitted = false;
-		if (execId) {
-			const exec = await request('GET', `/rest/executions/${execId}?includeData=true`, undefined, authHeaders);
-			try {
-				const raw = exec.json?.data?.data ?? exec.json?.data;
-				let parsed = raw;
-				if (typeof raw === 'string') {
-					const { parse } = require('flatted');
-					parsed = parse(raw);
-				}
-				const runData = parsed?.resultData?.runData || {};
-				for (const [node, runs] of Object.entries(runData)) {
-					const items = runs[0]?.data?.main?.[0] || [];
-					for (const item of items) {
-						const j = item.json || {};
-						if (j.thread || j.message) {
-							emitted = true;
-							console.log(`✅ Trigger emitted: thread id=${j.thread?.id} subject=${j.thread?.message?.[0]?.subject || j.message?.[0]?.subject || '(none)'}`);
-						}
-					}
-				}
-			} catch (e2) { console.warn('⚠️  Could not parse execution data:', e2.message); }
-		}
-
-		// 3b. Fallback: check mailbox directly for the test thread
-		if (!emitted) {
-			console.warn('⚠️  No emission in execution data — checking NAS mailbox directly');
-		}
-
-		const execs = await request('GET', `/rest/executions?workflowId=${wfId}&limit=5&includeData=true`, undefined, authHeaders);
-		let list = execs.json?.data;
-		if (!Array.isArray(list) && Array.isArray(execs.json)) list = execs.json;
-		if (!Array.isArray(list)) list = [execs.json?.data ?? execs.json].filter(Boolean);
-		console.log('executions:', list.length);
-		for (const e of list) {
-			if (e.status !== 'success') continue;
-			try {
-				const raw = e.data?.data ?? e.data;
-				let parsed = raw;
-				if (typeof raw === 'string') {
-					const { parse } = require('flatted');
-					parsed = parse(raw);
-				}
-				const runData = parsed?.resultData?.runData || {};
-				for (const [node, runs] of Object.entries(runData)) {
-					const items = runs[0]?.data?.main?.[0] || [];
-					for (const item of items) {
-						const j = item.json || {};
-						if (j.thread || j.message) {
-							emitted = true;
-							console.log(`✅ Trigger emitted: thread id=${j.thread?.id} subject=${j.message?.[0]?.subject || j.thread?.message?.[0]?.subject || '(none)'} from=${j.message?.[0]?.from || j.thread?.message?.[0]?.from}`);
-						}
-					}
-				}
-			} catch (e2) { /* skip unparseable */ }
+		for (const [node, runs] of Object.entries(runData)) {
+			const items = runs[0]?.data?.main?.[0] || [];
+			for (const item of items) {
+				const j = item.json || {};
+				if (j.thread || j.message) emitted = true;
+			}
 		}
 		if (!emitted) throw new Error('No MailPlus trigger emission found in executions');
-		console.log('✅ MailPlus trigger emitted the test message');
+		pass('MailPlus trigger emitted the test message');
+
+		// --- Filter matrix (same fixture mail, fresh workflows) ---
+		const filterFrom = mailAddress(`flt-${Date.now()}`);
+		const filterSubject = `Filter E2E ${Date.now()}`;
+		await sendTestEmail({ from: filterFrom, to: mailboxAddress(), subject: filterSubject, body: 'filter e2e body' });
+		detail('filter fixture sent');
+		await sleep(8000);
+		let filterFailures = 0;
+		for (const [extraParams, label] of [
+			[{ from: filterFrom }, 'from'],
+			[{ unreadOnly: true }, 'unreadOnly'],
+			[{ readStatus: 'unread' }, 'readStatus=unread'],
+		]) {
+			const ok = await testTriggerFilter(authHeaders, credId, extraParams, filterSubject, label);
+			if (!ok) filterFailures++;
+		}
+		if (process.env.SYNO_MAIL_FILTER_FIXTURES === 'true') {
+			for (const [extraParams, label, subject] of [
+				[{ starredOnly: true }, 'starredOnly', 'Filter Starred'],
+				[{ hasAttachmentOnly: true }, 'hasAttachmentOnly', 'Filter Attachment'],
+				[{ label: '1' }, 'label=1', 'Filter Starred'],
+			]) {
+				const ok = await testTriggerFilter(authHeaders, credId, extraParams, subject, label);
+				if (!ok) filterFailures++;
+			}
+		}
+		if (filterFailures > 0) throw new Error(`${filterFailures} MailPlus filter assertion(s) failed`);
 
 		// deactivate + cleanup
 		await request('POST', `/rest/workflows/${wfId}/deactivate`, {}, authHeaders).catch(() => {});
@@ -187,28 +217,6 @@ async function main() {
 	} finally {
 		if (credential?.json?.data?.id) await request('DELETE', `/rest/credentials/${credential.json.data.id}`, undefined, authHeaders).catch(() => {});
 	}
-}
-
-function sendTestEmail() {
-	return new Promise((resolve, reject) => {
-		const { execFile } = require('child_process');
-		const script = `
-import smtplib
-from email.mime.text import MIMEText
-msg = MIMEText("Trigger node test body from n8n E2E")
-msg["Subject"] = "MailPlus Trigger Test"
-msg["From"] = "sender-filter@example.com"
-msg["To"] = "user@example.com"
-s = smtplib.SMTP("192.168.1.100", 25, timeout=10)
-s.sendmail("sender-filter@example.com", ["user@example.com"], msg.as_string())
-s.quit()
-print("sent")
-`;
-		execFile('python3', ['-c', script], { timeout: 20000 }, (err, stdout, stderr) => {
-			if (err) reject(new Error('smtp: ' + (stderr || err.message)));
-			else resolve(stdout.trim());
-		});
-	});
 }
 
 main().catch((e) => { console.error(e.stack || e.message); process.exitCode = 1; });

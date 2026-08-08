@@ -80,7 +80,7 @@ Credentials are provided via env vars only and are not stored in the repo.
 
 ## n8n Workflow E2E
 
-Reusable n8n workflow-level E2E script: `test/e2e-n8n-workflow.js`.
+Reusable n8n workflow-level E2E script: `test/e2e-n8n-notestation-expanded.js`.
 
 It automatically:
 
@@ -97,7 +97,7 @@ It automatically:
 Usage:
 
 ```bash
-SYNO_BASE_URL='http://192.168.1.100:5000' SYNO_ACCOUNT='nasadmin' SYNO_PASS='...' node test/e2e-n8n-workflow.js
+SYNO_BASE_URL='http://192.168.1.100:5000' SYNO_ACCOUNT='nasadmin' SYNO_PASS='...' node test/e2e-n8n-notestation-expanded.js
 ```
 
 Current workflow coverage:

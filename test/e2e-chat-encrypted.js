@@ -9,6 +9,7 @@
 const http = require('http');
 const { URL } = require('url');
 const { execSync } = require('child_process');
+const { pass: e2ePass, fail: e2eFail } = require('./n8nE2eLog');
 
 process.env.N8N_BASE_URL = process.env.N8N_BASE_URL || 'http://localhost:5680';
 process.env.N8N_OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'admin@example.com';
@@ -16,8 +17,8 @@ process.env.N8N_OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'admin@example.com'
 const BASE = process.env.N8N_BASE_URL;
 const TYPE = 'CUSTOM.synologyChat';
 let pass = 0, fail = 0;
-const ok = (n, d) => { pass++; console.log(`✅ ${n}${d ? ': ' + String(d).slice(0, 160) : ''}`); };
-const bad = (n, e) => { fail++; console.log(`❌ ${n}: ${e && e.message ? e.message : String(e).slice(0, 200)}`); };
+const ok = (n, d) => { pass++; e2ePass(n, d); };
+const bad = (n, e) => { fail++; e2eFail(n, e); };
 
 function request(method, route, body, headers) {
 	return new Promise((resolve, reject) => {
@@ -87,7 +88,7 @@ async function runWorkflow(name, nodes, connections) {
 		bad('Encrypted channel create', new Error(n.error));
 	} else {
 		channelId = n?.json?.channel_id || n?.json?.id || 0;
-		ok('Encrypted channel create', `id=${channelId} json=${JSON.stringify(n?.json || {}).slice(0, 120)}`);
+		ok('Encrypted channel create');
 	}
 
 	// verify via SQL (private channel not visible in joined list)

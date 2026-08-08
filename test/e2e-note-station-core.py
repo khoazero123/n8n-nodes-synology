@@ -36,10 +36,10 @@ def post(params: dict) -> dict:
 		return json.loads(resp.read().decode())
 
 
-def sanitize(obj: dict) -> str:
-	text = json.dumps(obj, ensure_ascii=False)
-	return text[:800] + "...<truncated>" if len(text) > 800 else text
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from e2e_log import quiet, redact
 
 def api(api_name: str, version: int, method: str, **params) -> dict:
 	payload = {"api": api_name, "version": str(version), "method": method, "_sid": sid}
@@ -48,7 +48,13 @@ def api(api_name: str, version: int, method: str, **params) -> dict:
 			continue
 		payload[key] = json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else value
 	response = post(payload)
-	print(f"{api_name}.{method}:", "OK" if response.get("success") else "FAIL", sanitize(response))
+	if quiet():
+		print(f"{api_name}.{method}:", "OK" if response.get("success") else "FAIL")
+	else:
+		text = json.dumps(response, ensure_ascii=False)
+		if len(text) > 800:
+			text = text[:800] + "...<truncated>"
+		print(f"{api_name}.{method}:", "OK" if response.get("success") else "FAIL", text)
 	return response
 
 
@@ -133,7 +139,10 @@ def main() -> int:
 	require(response.get("success"), "delete notebook failed")
 	created_notebook = None
 
-	print(json.dumps({"success": True, "prefix": PREFIX}, ensure_ascii=False, indent=2))
+	if quiet():
+		print(json.dumps({"success": True}))
+	else:
+		print(json.dumps({"success": True, "prefix": PREFIX}, ensure_ascii=False, indent=2))
 	return 0
 
 
@@ -141,7 +150,7 @@ if __name__ == "__main__":
 	try:
 		raise SystemExit(main())
 	except Exception as exc:
-		print("E2E_FAIL:", exc, file=sys.stderr)
+		print("E2E_FAIL:", redact(str(exc)), file=sys.stderr)
 		raise SystemExit(1)
 	finally:
 		cleanup()

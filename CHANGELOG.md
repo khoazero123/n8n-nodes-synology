@@ -15,9 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handling.
 - Synology MailPlus `SynologyMailPlusClientTrigger` (polling) aligned with
   the n8n node-creator pattern so trigger actions merge with the action node.
-- Chat Message → Send a Message via session API (`Post.create`): channel,
-  direct user, and optional webhook token paths; posts use type `normal` so
-  they appear in the Chat UI.
+- Chat Message → Send a Message via session API (`Post.create`): channel or
+  direct user; posts use type `normal` so they appear in the Chat UI.
 - Chat channel fields use `loadOptions` dropdowns instead of manual IDs.
 
 ### Changed
@@ -26,22 +25,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `synologyMailClientTrigger` → `synologyMailPlusClient` /
   `synologyMailPlusClientTrigger`. Existing workflows must re-add the
   node or update node type references.
-- Rename `apps/mailClient` → `apps/mailPlusClient` (`MailPlusClient`
-  class) and MailPlus E2E scripts to `e2e-mailplusclient-*.js`.
+- Rename `apps/mailClient` → `apps/mailPlusClient` (`MailPlusClient` class).
 - Clarify MailPlus-only naming: `mailPlus` resource, `MAIL_PLUS_*` constants,
   `mailPlusPollUtils`, trigger static-data keys `mailPlusSeen_*`.
 - Chat: consolidate list actions under Channel; remove duplicate token-based
   Message list ops and unused User / Post resources.
 - Migrate build/lint/release to `@n8n/node-cli` (`n8n-node`); drop gulp,
   legacy `index.js` entry, esbuild post-build bundle, and `n8n-reload` helper.
-- E2E scripts read secrets from env only (no hardcoded local paths).
-- CI: Dependabot groups, ignore incompatible major eslint/typescript bumps,
-  and `usableAsTool: true` on trigger nodes.
 
 ### Fixed
 - Use `NodeConnectionTypes.Main` instead of string literals so the n8n
   community package scan accepts the package.
 - MailPlus node icon uses the official DSM MailPlus package artwork.
+- Options params with `loadOptions` now use `default: ''`; MailPlus Trigger
+  mailbox options are static so `default: 'inbox'` validates.
+- Note Station: treat `Permission.set` (enable ACL) as idempotent so sequential
+  user/group/public share nodes do not fail when ACL is already enabled.
+- Include Synology `error` JSON in `SynologyClient.request` failure messages.
 
 ## [0.1.5] - 2026-08-06
 

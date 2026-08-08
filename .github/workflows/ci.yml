@@ -5,11 +5,16 @@ on:
   push:
     branches:
       - master
+  workflow_call:
 
 # Cancel in-progress runs for the same branch/PR to avoid wasting CI minutes.
+# workflow_call inherits the caller's ref (e.g. version tag from Publish).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build:

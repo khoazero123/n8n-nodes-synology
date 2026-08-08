@@ -211,7 +211,7 @@ export class SynologyChat implements INodeType {
 				displayName: 'Channel Name or ID',
 				name: 'whSetChannelId',
 				type: 'options',
-				default: 0,
+				default: '',
 				typeOptions: {
 					loadOptionsMethod: 'getChannelsOptional',
 				},
@@ -320,7 +320,7 @@ export class SynologyChat implements INodeType {
 				displayName: 'Channel Name or ID',
 				name: 'owChannelId',
 				type: 'options',
-				default: 0,
+				default: '',
 				typeOptions: {
 					loadOptionsMethod: 'getChannelsWithAny',
 				},
@@ -366,7 +366,7 @@ export class SynologyChat implements INodeType {
 				displayName: 'Channel Name or ID',
 				name: 'owSetChannelId',
 				type: 'options',
-				default: 0,
+				default: '',
 				typeOptions: {
 					loadOptionsMethod: 'getChannelsWithAny',
 				},

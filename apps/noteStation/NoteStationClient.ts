@@ -396,13 +396,7 @@ export class NoteStationClient {
 	}
 
 	async setPublicShare(input: SetPublicShareInput): Promise<NoteStationData> {
-		await this.synology.request({
-			api: PERMISSION_API,
-			version: PERMISSION_API_VERSION,
-			method: 'set',
-			session: NOTE_STATION_SESSION,
-			params: { object_id: input.objectId, enabled: true },
-		});
+		await this.enablePermission(input.objectId);
 
 		return await this.synology.request({
 			api: PUBLIC_PERMISSION_API,
@@ -505,12 +499,18 @@ export class NoteStationClient {
 	}
 
 	private async enablePermission(objectId: string): Promise<void> {
-		await this.synology.request({
-			api: PERMISSION_API,
-			version: PERMISSION_API_VERSION,
-			method: 'set',
-			session: NOTE_STATION_SESSION,
-			params: { object_id: objectId, enabled: true },
-		});
+		try {
+			await this.synology.request({
+				api: PERMISSION_API,
+				version: PERMISSION_API_VERSION,
+				method: 'set',
+				session: NOTE_STATION_SESSION,
+				params: { object_id: objectId, enabled: true },
+			});
+		} catch {
+			// ACL may already be enabled from an earlier share in another node
+			// execution (e.g. Share User then Share Group). A redundant
+			// Permission.set can fail while User/Group/Public.set still works.
+		}
 	}
 }

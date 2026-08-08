@@ -130,8 +130,9 @@ export class SynologyClient {
 		}, this.tokenHeaders(auth));
 
 		if (!response.success) {
+			const detail = response.error ? `: ${JSON.stringify(response.error)}` : '';
 			throw new NodeApiError(this.executeFunctions.getNode(), response as unknown as JsonObject, {
-				message: `Synology API call failed: ${request.api}.${request.method}`,
+				message: `Synology API call failed: ${request.api}.${request.method}${detail}`,
 			});
 		}
 

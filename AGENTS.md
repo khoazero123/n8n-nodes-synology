@@ -52,7 +52,7 @@ CI runs the full suite via [`.github/workflows/e2e.yml`](.github/workflows/e2e.y
 | MailPlus client (extended) | `node test/e2e-mailplusclient-extended.js` |
 | MailPlus trigger | `node test/e2e-mailplusclient-trigger-n8n.js` |
 | MailPlus trigger filters | `node test/e2e-mailplusclient-trigger-filters.js` |
-| Synology Chat | `node test/e2e-chat-n8n.js` |
+| Synology Chat (optional, full node) | `node test/e2e-chat-n8n.js` |
 | Chat outgoing webhook CRUD | `node test/e2e-chat-outgoing.js` |
 | Chat trigger | `node test/e2e-chat-trigger-n8n.js` |
 | Synology Photos | `node test/e2e-photos-n8n.js` |
@@ -68,7 +68,6 @@ node test/e2e-n8n-workflow.js
 node test/e2e-n8n-notestation-expanded.js
 node test/e2e-chat-outgoing.js
 node test/e2e-chat-trigger-n8n.js
-node test/e2e-chat-n8n.js
 node test/e2e-mailplusclient-trigger-n8n.js
 node test/e2e-mailplusclient-trigger-filters.js
 node test/e2e-download-station-n8n.js
@@ -98,3 +97,13 @@ npm run release
 ```
 
 Tags use the `v*.*.*` convention (e.g. `v0.1.6`). Publishing runs in GitHub Actions with npm provenance — see [`.github/workflows/publish.yml`](.github/workflows/publish.yml).
+
+Do **not** bump `package.json` / CHANGELOG to a new version for fixes or updates if the current version is not yet published on npm. Keep working on the same version until it ships; only bump after that version is live on the registry.
+
+### Changelog
+
+Follow [Keep a Changelog](https://keepachangelog.com/). The `## [Unreleased]` heading is permanent — never delete it.
+
+- While developing after a version is on npm: append notes under `[Unreleased]`.
+- On release: move those notes into a new `## [x.y.z] - YYYY-MM-DD` section directly below `[Unreleased]`, leaving `[Unreleased]` empty (heading only).
+- If the current `package.json` version is not on npm yet: put fix/update notes under that existing version section (do not invent a new version or leave them only in `[Unreleased]`).

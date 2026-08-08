@@ -41,7 +41,7 @@ export class SynologyChatTrigger implements INodeType {
 				displayName: 'Channel Name or ID',
 				name: 'channelId',
 				type: 'options',
-				default: 0,
+				default: '',
 				typeOptions: {
 					loadOptionsMethod: 'getChannels',
 				},

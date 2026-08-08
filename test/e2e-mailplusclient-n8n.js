@@ -4,8 +4,8 @@
 const http = require('http');
 const crypto = require('crypto');
 const { ensureN8nSession } = require('./n8nE2eAuth');
-const { mailAddress, mailboxAddress, sendTestEmail } = require('./n8nE2eSmtp');
-const { detail, pass, warn, logRun } = require('./n8nE2eLog');
+const { mailboxAddress, sendTestEmail } = require('./n8nE2eSmtp');
+const { detail, pass, logRun } = require('./n8nE2eLog');
 
 const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-mail-e2e@example.com';
@@ -245,6 +245,17 @@ async function main() {
 				allowUnauthorizedCerts: process.env.SYNO_ALLOW_UNAUTHORIZED_CERTS !== 'false',
 			},
 		});
+		const smokeToken = `mpsc${Date.now()}`;
+		const smokeSubject = `MailPlus smoke ${smokeToken}`;
+		await sendTestEmail({
+			from: mailboxAddress(),
+			to: mailboxAddress(),
+			subject: smokeSubject,
+			body: 'MailPlus client smoke fixture',
+		});
+		detail('smoke fixture email sent');
+		await sleep(8000);
+
 		const type = 'CUSTOM.synologyMailPlusClient';
 		const c = { synologyApi: { id: credential.json.data.id, name: credential.json.data.name } };
 		const nodes = [
@@ -252,9 +263,9 @@ async function main() {
 			{ name: 'Get Info', type, typeVersion: 1, position: [240, 0], parameters: { resource: 'mailPlus', operation: 'getInfo' }, credentials: c },
 			{ name: 'Get Mailboxes', type, typeVersion: 1, position: [480, 0], parameters: { resource: 'mailbox', operation: 'list' }, credentials: c },
 			{ name: 'Get Labels', type, typeVersion: 1, position: [720, 0], parameters: { resource: 'label', operation: 'list' }, credentials: c },
-			{ name: 'List Threads', type, typeVersion: 1, position: [960, 0], parameters: { resource: 'thread', operation: 'list', mailbox: 'inbox', limit: 50 }, credentials: c },
-			{ name: 'Get Message', type, typeVersion: 1, position: [1200, 0], parameters: { resource: 'message', operation: 'get', messageId: '={{ $json.thread[0].message[0].id }}' }, credentials: c },
-			{ name: 'Create Draft', type, typeVersion: 1, position: [1440, 0], parameters: { resource: 'draft', operation: 'create', from: mailboxAddress(), to: mailAddress('fgc'), subject: 'n8n draft test', body: 'draft body' }, credentials: c },
+			{ name: 'List Threads', type, typeVersion: 1, position: [960, 0], parameters: { resource: 'thread', operation: 'list', mailbox: 'inbox', limit: 50, keyword: smokeToken }, credentials: c },
+			{ name: 'Get Message', type, typeVersion: 1, position: [1200, 0], parameters: { resource: 'message', operation: 'get', messageId: '={{ $json.thread.find(t => Array.isArray(t.message) && t.message[0]?.id)?.message[0].id }}' }, credentials: c },
+			{ name: 'Create Draft', type, typeVersion: 1, position: [1440, 0], parameters: { resource: 'draft', operation: 'create', from: mailboxAddress(), to: mailboxAddress(), subject: 'n8n draft test', body: 'draft body' }, credentials: c },
 			{ name: 'Send Draft', type, typeVersion: 1, position: [1680, 0], parameters: { resource: 'draft', operation: 'send', draftId: '={{ $json.id }}' }, credentials: c },
 		];
 		const connections = {};
@@ -290,24 +301,28 @@ async function main() {
 		const threadOut = summary['List Threads']?.[0]?.json?.[0];
 		if (!threadOut || !Array.isArray(threadOut.thread)) throw new Error('Thread list unexpected');
 		pass(`Threads returned total=${threadOut.total}`);
+		const getMsgRun = summary['Get Message']?.[0];
+		if (getMsgRun?.status === 'error') {
+			throw new Error(`Get Message failed: ${getMsgRun.error || 'unknown'}`);
+		}
 		if (threadOut.thread.length > 0) {
-			const msgOut = summary['Get Message']?.[0]?.json?.[0];
+			const msgOut = getMsgRun?.json?.[0];
 			if (msgOut && Array.isArray(msgOut.message) && msgOut.message.length) {
 				pass('Message get');
 			} else {
-				warn('Get Message output unexpected');
+				throw new Error('Get Message output unexpected');
 			}
 		}
 
 		const draftOut = summary['Create Draft']?.[0]?.json?.[0];
 		if (!draftOut || draftOut.id === undefined) {
-			warn('Create Draft output unexpected');
-		} else {
-			pass('Draft created');
-			const sendOut = summary['Send Draft']?.[0];
-			if (sendOut?.status === 'error') throw new Error(`Send Draft failed: ${sendOut.error}`);
-			pass('Draft sent');
+			const draftErr = summary['Create Draft']?.[0];
+			throw new Error(`Create Draft failed: ${draftErr?.error || 'unexpected output'}`);
 		}
+		pass('Draft created');
+		const sendOut = summary['Send Draft']?.[0];
+		if (sendOut?.status === 'error') throw new Error(`Send Draft failed: ${sendOut.error}`);
+		pass('Draft sent');
 
 		if (execution.json?.data?.status !== 'success') {
 			console.error(`Execution status: ${execution.json?.data?.status}`);

@@ -17,7 +17,13 @@ on:
     secrets:
       SYNO_PASS:
         required: true
-      SYNO_ALLOW_UNAUTHORIZED_CERTS:
+      SYNO_BASE_URL:
+        required: false
+      SYNO_USERNAME:
+        required: false
+      SYNO_MAIL_USER:
+        required: false
+      SYNO_SMTP_HOST:
         required: false
 
 permissions:
@@ -29,11 +35,12 @@ jobs:
     timeout-minutes: 45
     env:
       N8N_VERSION: ${{ inputs.n8n_version || 'latest' }}
-      SYNO_BASE_URL: ${{ vars.SYNO_BASE_URL }}
-      SYNO_ACCOUNT: ${{ vars.SYNO_USERNAME }}
+      SYNO_BASE_URL: ${{ secrets.SYNO_BASE_URL || vars.SYNO_BASE_URL }}
+      SYNO_ACCOUNT: ${{ secrets.SYNO_USERNAME || vars.SYNO_USERNAME }}
       SYNO_PASS: ${{ secrets.SYNO_PASS }}
-      SYNO_ALLOW_UNAUTHORIZED_CERTS: ${{ secrets.SYNO_ALLOW_UNAUTHORIZED_CERTS || 'true' }}
-      SYNO_MAIL_USER: ${{ vars.SYNO_MAIL_USER }}
+      SYNO_ALLOW_UNAUTHORIZED_CERTS: ${{ vars.SYNO_ALLOW_UNAUTHORIZED_CERTS || 'true' }}
+      SYNO_MAIL_USER: ${{ secrets.SYNO_MAIL_USER || vars.SYNO_MAIL_USER }}
+      SYNO_SMTP_HOST: ${{ secrets.SYNO_SMTP_HOST || vars.SYNO_SMTP_HOST }}
       SYNO_E2E_QUIET: 'true'
     steps:
       - name: Checkout
@@ -50,7 +57,7 @@ jobs:
           missing=0
           for name in SYNO_BASE_URL SYNO_ACCOUNT SYNO_PASS; do
             if [ -z "${!name}" ]; then
-              echo "Missing required GitHub variable or secret: $name" >&2
+              echo "Missing required GitHub secret or variable: $name" >&2
               missing=1
             fi
           done
@@ -132,7 +139,6 @@ jobs:
           N8N_BASE_URL: http://127.0.0.1:5680
           N8N_OWNER_EMAIL: synology-ci-e2e@example.com
           N8N_OWNER_PASSWORD: N8nCiE2e-ChangeMe-2026!
-          SYNO_SMTP_HOST: ${{ vars.SYNO_SMTP_HOST }}
 
       - name: Synology MailPlus client E2E
         run: node test/e2e-mailplusclient-n8n.js
@@ -140,7 +146,6 @@ jobs:
           N8N_BASE_URL: http://127.0.0.1:5680
           N8N_OWNER_EMAIL: synology-ci-e2e@example.com
           N8N_OWNER_PASSWORD: N8nCiE2e-ChangeMe-2026!
-          SYNO_SMTP_HOST: ${{ vars.SYNO_SMTP_HOST }}
 
       - name: Note Station attachment binary n8n Workflow E2E
         run: node test/e2e-n8n-notestation-attachments.js

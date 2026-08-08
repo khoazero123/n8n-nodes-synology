@@ -31,6 +31,28 @@ E2E scripts live in `test/`. They are **not** npm scripts — run them directly.
 
 CI runs the full suite via [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml) on a self-hosted runner with Docker n8n on port 5680.
 
+### GitHub Actions configuration (E2E)
+
+Store NAS connection settings as **repository secrets** (preferred). The workflow reads each value from `secrets.*` first, then falls back to the matching `vars.*` name for backward compatibility.
+
+| Secret / variable | Maps to env | Required |
+| --- | --- | --- |
+| `SYNO_BASE_URL` | `SYNO_BASE_URL` | yes |
+| `SYNO_USERNAME` | `SYNO_ACCOUNT` | yes |
+| `SYNO_PASS` | `SYNO_PASS` | yes |
+| `SYNO_SMTP_HOST` | `SYNO_SMTP_HOST` | yes on self-hosted CI (LAN SMTP IP; public NAS hostname often blocks port 25) |
+| `SYNO_MAIL_USER` | `SYNO_MAIL_USER` | no (defaults to `SYNO_ACCOUNT`) |
+| `SYNO_ALLOW_UNAUTHORIZED_CERTS` (variable) | `SYNO_ALLOW_UNAUTHORIZED_CERTS` | no (defaults to `true`) |
+
+Example:
+
+```bash
+gh secret set SYNO_BASE_URL --body 'https://nas.example.com'
+gh secret set SYNO_USERNAME --body 'nasadmin'
+gh secret set SYNO_PASS --body '...'
+gh secret set SYNO_SMTP_HOST --body '192.168.1.175'
+```
+
 ### Direct API tests (no n8n)
 
 | Test | Command | Node / layer |

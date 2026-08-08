@@ -1,5 +1,5 @@
 import type { IDataObject, INodeExecutionData, INodeType, INodeTypeDescription, IPollFunctions } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
+import { MAIN_CONNECTION_TYPE } from '../shared/connectionTypes';
 import { MailPlusClient } from '../../apps/mailPlusClient/MailPlusClient';
 import { pollNewMailPlusThreads } from '../../apps/mailPlusClient/mailPlusPollUtils';
 import { SynologyClient } from '../../transport/SynologyClient';
@@ -17,7 +17,7 @@ export class SynologyMailPlusClientTrigger implements INodeType {
 		defaults: { name: 'Synology MailPlus Trigger' },
 		usableAsTool: true,
 		inputs: [],
-		outputs: [NodeConnectionTypes.Main],
+		outputs: [MAIN_CONNECTION_TYPE],
 		credentials: [{ name: 'synologyApi', required: true }],
 		polling: true,
 		properties: [

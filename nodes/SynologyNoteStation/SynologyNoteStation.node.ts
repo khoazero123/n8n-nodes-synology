@@ -1,4 +1,5 @@
-import { NodeOperationError, NodeConnectionTypes  } from 'n8n-workflow';
+import { NodeOperationError } from 'n8n-workflow';
+import { MAIN_CONNECTION_TYPE } from '../shared/connectionTypes';
 import type {
 	IExecuteFunctions,
 	INodeExecutionData,
@@ -94,9 +95,9 @@ export class SynologyNoteStation implements INodeType {
 		description: 'Automate Synology Note Station notebooks, notes, shelves, shares, and attachments',
 		defaults: { name: 'Synology Note Station' },
 		 
-		inputs: [NodeConnectionTypes.Main],
+		inputs: [MAIN_CONNECTION_TYPE],
 		 
-		outputs: [NodeConnectionTypes.Main],
+		outputs: [MAIN_CONNECTION_TYPE],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,
 		properties: [

@@ -6,7 +6,8 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes, NodeOperationError  } from 'n8n-workflow';
+import { NodeOperationError } from 'n8n-workflow';
+import { MAIN_CONNECTION_TYPE } from '../shared/connectionTypes';
 import { randomBytes } from 'node:crypto';
 import { generatePairedItemData } from './GenericFunctions';
 
@@ -112,9 +113,9 @@ export class SynologyDrive implements INodeType {
 			name: 'Synology Drive',
 		},
 		 
-		inputs: [NodeConnectionTypes.Main],
+		inputs: [MAIN_CONNECTION_TYPE],
 		 
-		outputs: [NodeConnectionTypes.Main],
+		outputs: [MAIN_CONNECTION_TYPE],
 		credentials: [
 			{
 				name: 'synologyApi',

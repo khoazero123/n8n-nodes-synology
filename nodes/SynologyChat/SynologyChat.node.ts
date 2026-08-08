@@ -7,7 +7,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
+import { MAIN_CONNECTION_TYPE } from '../shared/connectionTypes';
 import { ChatClient } from '../../apps/chatClient/ChatClient';
 import { buildChannelOptions } from '../../apps/chatClient/channelLoadOptions';
 import { buildUserOptions } from '../../apps/chatClient/userLoadOptions';
@@ -63,9 +63,9 @@ export class SynologyChat implements INodeType {
 		description: 'Work with Synology Chat: send messages, list channels and posts, manage bots and webhooks',
 		defaults: { name: 'Synology Chat' },
 		 
-		inputs: [NodeConnectionTypes.Main],
+		inputs: [MAIN_CONNECTION_TYPE],
 		 
-		outputs: [NodeConnectionTypes.Main],
+		outputs: [MAIN_CONNECTION_TYPE],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,
 		properties: [

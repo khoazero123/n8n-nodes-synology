@@ -7,7 +7,7 @@ import type {
 	IWebhookFunctions,
 	IWebhookResponseData,
 } from 'n8n-workflow';
-import { NodeConnectionTypes } from 'n8n-workflow';
+import { MAIN_CONNECTION_TYPE } from '../shared/connectionTypes';
 import { ChatClient } from '../../apps/chatClient/ChatClient';
 import { buildChannelOptions } from '../../apps/chatClient/channelLoadOptions';
 import { isOutgoingWebhookDisabled, outgoingWebhookConfigMatches, assertTriggerWordForAnyChannel, mergeOutgoingWebhookPayload, normalizeOutgoingWebhookPayload, outgoingWebhookTextMatches } from '../../apps/chatClient/outgoingWebhookUtils';
@@ -26,7 +26,7 @@ export class SynologyChatTrigger implements INodeType {
 		defaults: { name: 'Synology Chat Trigger' },
 		usableAsTool: true,
 		inputs: [],
-		outputs: [NodeConnectionTypes.Main],
+		outputs: [MAIN_CONNECTION_TYPE],
 		credentials: [{ name: 'synologyApi', required: true }],
 		webhooks: [
 			{

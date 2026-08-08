@@ -5,7 +5,8 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes, NodeApiError  } from 'n8n-workflow';
+import { NodeApiError } from 'n8n-workflow';
+import { MAIN_CONNECTION_TYPE } from '../shared/connectionTypes';
 import { MailPlusClient } from '../../apps/mailPlusClient/MailPlusClient';
 import { MAIL_PLUS_MAILBOX_ID_MAP } from '../../apps/mailPlusClient/constants';
 import { SynologyClient } from '../../transport/SynologyClient';
@@ -108,9 +109,9 @@ export class SynologyMailPlusClient implements INodeType {
 			],
 		},
 		 
-		inputs: [NodeConnectionTypes.Main],
+		inputs: [MAIN_CONNECTION_TYPE],
 		 
-		outputs: [NodeConnectionTypes.Main],
+		outputs: [MAIN_CONNECTION_TYPE],
 		credentials: [{ name: 'synologyApi', required: true }],
 		usableAsTool: true,
 		properties: [

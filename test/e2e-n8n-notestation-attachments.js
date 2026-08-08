@@ -156,6 +156,9 @@ async function waitForRestApi() {
 
 async function setupOwnerAndLogin() {
 	await waitForRestApi();
+	if (startedByScript) {
+		try { fs.unlinkSync(process.env.N8N_E2E_COOKIE_FILE || '/tmp/n8n-nodes-synology-e2e.cookie'); } catch {}
+	}
 	await ensureN8nSession({
 		request,
 		getCookie: () => cookie,

@@ -91,19 +91,28 @@ export class SynologyClient {
 		// Station) use entry.cgi with these values in the multipart form. Keep
 		// the existing generic behavior by default; callers can opt into the
 		// path form through `multipartPath`.
-		const { multipartPath, ...requestParams } = request as SynologyRequestParams & { multipartPath?: string };
+		const { multipartPath, multipartApiInQuery, ...requestParams } = request as SynologyRequestParams & { multipartPath?: string; multipartApiInQuery?: boolean };
+		const encodeField = (value: unknown): string => {
+			if (multipartApiInQuery) return JSON.stringify(value);
+			return typeof value === 'object' ? JSON.stringify(value) : String(value);
+		};
 		const fields: Record<string, string> = {
-			api: request.api,
-			version: String(request.version),
-			method: request.method,
-			...(requestParams.params ? Object.fromEntries(Object.entries(requestParams.params).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : String(v)])) : {}),
+			...(multipartApiInQuery ? {} : { api: request.api, version: String(request.version), method: request.method }),
+			...(requestParams.params ? Object.fromEntries(
+				Object.entries(requestParams.params)
+					.filter(([, value]) => value !== undefined && value !== null)
+					.map(([key, value]) => [key, encodeField(value)]),
+			) : {}),
 			...extraFields,
 		};
 		if (sid && request.authMode !== 'cookie') fields._sid = sid;
 		for (const [key, value] of Object.entries(fields)) chunks.push(Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="${key}"${crlf}${crlf}${value}${crlf}`));
 		chunks.push(Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="${file.fieldName}"; filename="${file.filename.replace(/"/g, '')}"${crlf}Content-Type: ${file.contentType ?? 'application/octet-stream'}${crlf}${crlf}`));
 		chunks.push(file.data, Buffer.from(crlf), Buffer.from(`--${boundary}--${crlf}`));
-		const url = `${this.credentials.baseUrl.replace(/\/$/, '')}/webapi/${multipartPath ? `${multipartPath.replace(/^\//, '')}/${request.api}` : 'entry.cgi'}`;
+		const urlBase = `${this.credentials.baseUrl.replace(/\/$/, '')}/webapi/${multipartPath ? `${multipartPath.replace(/^\//, '')}/${request.api}` : 'entry.cgi'}`;
+		const url = multipartApiInQuery
+			? `${urlBase}?${new URLSearchParams({ api: request.api, version: String(request.version), method: request.method }).toString()}`
+			: urlBase;
 		const headers: Record<string, string> = { 'Content-Type': `multipart/form-data; boundary=${boundary}` };
 		if (request.authMode === 'cookie' && sid) {
 			headers.Cookie = `id=${sid}`;

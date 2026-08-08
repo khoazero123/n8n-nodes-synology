@@ -13,8 +13,6 @@ import {
 	IMPORT_NOTEBOOK_API,
 	IMPORT_ENEX_API,
 	IMPORT_API_VERSION,
-	NOTE_APPLINK_API,
-	NOTE_APPLINK_API_VERSION,
 	NOTE_STATION_SESSION,
 	NOTEBOOK_API,
 	NOTEBOOK_API_VERSION,
@@ -333,28 +331,41 @@ export class NoteStationClient {
 
 	async listAttachments(objectId: string): Promise<NoteStationData> {
 		const note = await this.getNote(objectId);
-		return { object_id: objectId, attachment: note.attachment ?? [] };
+		return { object_id: objectId, attachment: this.normalizeAttachments(note.attachment) };
+	}
+
+	private normalizeAttachments(attachment: unknown): IDataObject[] {
+		if (Array.isArray(attachment)) return attachment as IDataObject[];
+		if (attachment && typeof attachment === 'object') {
+			return Object.entries(attachment as Record<string, IDataObject>).map(([file_id, meta]) => ({
+				file_id,
+				...(meta ?? {}),
+			}));
+		}
+		return [];
 	}
 
 	async uploadAttachment(input: AttachmentInput & { filename: string; data: Buffer; contentType?: string }): Promise<NoteStationData> {
-		// The DSM Note Station frontend uses a unique multipart field name in the
-		// attachment metadata and the original filename as the file-part key.
-		const multipartFieldName = `attachment_${Date.now()}`;
+		// DSM html5 upload: unique multipart field name in attachment metadata and
+		// the file part; api/version/method in the URL; session cookie auth.
+		const multipartFieldName = `ext-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 		return await this.synology.requestMultipart(
 			{
 				api: NOTE_API,
 				version: NOTE_API_VERSION,
 				method: 'set',
 				session: NOTE_STATION_SESSION,
+				authMode: 'cookie',
+				multipartApiInQuery: true,
 				params: {
 					object_id: input.objectId,
-					ver: input.version ? JSON.stringify(input.version) : undefined,
+					ver: input.version || undefined,
 					commit_msg: { device: 'n8n', listable: false },
 					attachment: [{ action: 'create', format: 'raw', name: multipartFieldName }],
 				},
 			},
-			{ fieldName: input.filename, filename: input.filename, data: input.data, contentType: input.contentType },
-			{ html5upload: 'true' },
+			{ fieldName: multipartFieldName, filename: input.filename, data: input.data, contentType: input.contentType },
+			{},
 		);
 	}
 
@@ -364,11 +375,18 @@ export class NoteStationClient {
 
 	async getAttachment(input: AttachmentInput): Promise<IN8nHttpFullResponse> {
 		return await this.synology.requestBinary({
-			api: NOTE_APPLINK_API,
-			version: NOTE_APPLINK_API_VERSION,
-			method: 'get',
+			api: NOTE_API,
+			version: NOTE_API_VERSION,
+			method: 'download',
 			session: NOTE_STATION_SESSION,
-			params: { object_id: input.objectId, ver: input.version, file_id: input.fileId, ...(input.token ? { token: input.token } : {}) },
+			params: {
+				object_id: input.objectId,
+				ver: input.version ? JSON.stringify(input.version) : undefined,
+				file_id: input.fileId,
+				format: 'raw',
+				mode: 'download',
+				...(input.token ? { token: input.token } : {}),
+			},
 		});
 	}
 

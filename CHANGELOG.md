@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Note Station: treat `Permission.set` (enable ACL) as idempotent so sequential
   user/group/public share nodes do not fail when ACL is already enabled.
 - Include Synology `error` JSON in `SynologyClient.request` failure messages.
+- Note Station attachment upload uses the DSM html5 multipart contract (session
+  cookie auth, API query params, matching file field names) and download via
+  `Note.download`; list normalizes attachment maps to arrays with `file_id`.
 
 ## [0.1.5] - 2026-08-06
 

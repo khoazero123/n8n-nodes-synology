@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-08
+
+### Added
+- Synology Chat `SynologyChatTrigger` (outgoing webhook) with channel
+  dropdowns, trigger-word sync on activation, and form-urlencoded payload
+  handling.
+- Synology MailPlus `SynologyMailPlusClientTrigger` (polling) aligned with
+  the n8n node-creator pattern so trigger actions merge with the action node.
+- Chat Message → Send a Message via session API (`Post.create`): channel,
+  direct user, and optional webhook token paths; posts use type `normal` so
+  they appear in the Chat UI.
+- Chat channel fields use `loadOptions` dropdowns instead of manual IDs.
+
 ### Changed
 - **BREAKING:** Rename MailPlus node class `SynologyMailClient` →
   `SynologyMailPlusClient` and internal names `synologyMailClient` /
@@ -17,6 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class) and MailPlus E2E scripts to `e2e-mailplusclient-*.js`.
 - Clarify MailPlus-only naming: `mailPlus` resource, `MAIL_PLUS_*` constants,
   `mailPlusPollUtils`, trigger static-data keys `mailPlusSeen_*`.
+- Chat: consolidate list actions under Channel; remove duplicate token-based
+  Message list ops and unused User / Post resources.
+- Migrate build/lint/release to `@n8n/node-cli` (`n8n-node`); drop gulp,
+  legacy `index.js` entry, esbuild post-build bundle, and `n8n-reload` helper.
+- E2E scripts read secrets from env only (no hardcoded local paths).
+- CI: Dependabot groups, ignore incompatible major eslint/typescript bumps,
+  and `usableAsTool: true` on trigger nodes.
+
+### Fixed
+- Use `NodeConnectionTypes.Main` instead of string literals so the n8n
+  community package scan accepts the package.
+- MailPlus node icon uses the official DSM MailPlus package artwork.
 
 ## [0.1.5] - 2026-08-06
 

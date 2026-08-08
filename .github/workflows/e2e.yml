@@ -131,19 +131,25 @@ jobs:
           N8N_OWNER_EMAIL: synology-ci-e2e@example.com
           N8N_OWNER_PASSWORD: N8nCiE2e-ChangeMe-2026!
 
+      # Optional: requires reachable NAS SMTP (port 25). Set repo var SYNO_MAIL_SMTP_E2E=true
+      # and optionally SYNO_SMTP_HOST when the runner can deliver fixture mail.
       - name: Synology MailPlus trigger E2E
+        if: vars.SYNO_MAIL_SMTP_E2E == 'true'
         run: node test/e2e-mailplusclient-trigger-n8n.js
         env:
           N8N_BASE_URL: http://127.0.0.1:5680
           N8N_OWNER_EMAIL: synology-ci-e2e@example.com
           N8N_OWNER_PASSWORD: N8nCiE2e-ChangeMe-2026!
+          SYNO_SMTP_HOST: ${{ vars.SYNO_SMTP_HOST }}
 
       - name: Synology MailPlus trigger filters E2E
+        if: vars.SYNO_MAIL_SMTP_E2E == 'true'
         run: node test/e2e-mailplusclient-trigger-filters.js
         env:
           N8N_BASE_URL: http://127.0.0.1:5680
           N8N_OWNER_EMAIL: synology-ci-e2e@example.com
           N8N_OWNER_PASSWORD: N8nCiE2e-ChangeMe-2026!
+          SYNO_SMTP_HOST: ${{ vars.SYNO_SMTP_HOST }}
 
       # Optional until the target NAS Synology Drive dependency is healthy.
       - name: Note Station attachment binary n8n Workflow E2E

@@ -68,8 +68,6 @@ node test/e2e-n8n-workflow.js
 node test/e2e-n8n-notestation-expanded.js
 node test/e2e-chat-outgoing.js
 node test/e2e-chat-trigger-n8n.js
-node test/e2e-mailplusclient-trigger-n8n.js
-node test/e2e-mailplusclient-trigger-filters.js
 node test/e2e-download-station-n8n.js
 ```
 
@@ -77,6 +75,13 @@ Optional (when `SYNO_NOTE_ATTACHMENT_E2E=true` in CI):
 
 ```bash
 node test/e2e-n8n-notestation-attachments.js
+```
+
+Optional (when `SYNO_MAIL_SMTP_E2E=true` in CI; needs reachable SMTP — `SYNO_SMTP_HOST` / hostname of `SYNO_BASE_URL`):
+
+```bash
+node test/e2e-mailplusclient-trigger-n8n.js
+node test/e2e-mailplusclient-trigger-filters.js
 ```
 
 ### MailPlus filter fixtures

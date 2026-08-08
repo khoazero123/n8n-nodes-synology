@@ -5,6 +5,7 @@ const http = require('http');
 const crypto = require('crypto');
 
 const { ensureN8nSession } = require('./n8nE2eAuth');
+const { sendTestEmail: smtpSend } = require('./n8nE2eSmtp');
 
 const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-mail-filter-e2e@example.com';
@@ -57,25 +58,7 @@ async function waitForN8n() {
 
 /** Send a test email via python smtplib. */
 function sendTestEmail(from, subject) {
-	return new Promise((resolve, reject) => {
-		const { execFile } = require('child_process');
-		const script = `
-import smtplib
-from email.mime.text import MIMEText
-msg = MIMEText("filter e2e body")
-msg["Subject"] = ${JSON.stringify(subject)}
-msg["From"] = ${JSON.stringify(from)}
-msg["To"] = "user@example.com"
-s = smtplib.SMTP("192.168.1.100", 25, timeout=10)
-s.sendmail(${JSON.stringify(from)}, ["user@example.com"], msg.as_string())
-s.quit()
-print("sent")
-`;
-		execFile('python3', ['-c', script], { timeout: 20000 }, (err, stdout, stderr) => {
-			if (err) reject(new Error('smtp: ' + (stderr || err.message)));
-			else resolve(stdout.trim());
-		});
-	});
+	return smtpSend({ from, subject, body: 'filter e2e body' });
 }
 
 async function main() {

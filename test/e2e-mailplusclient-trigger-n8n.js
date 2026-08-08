@@ -5,6 +5,7 @@ const http = require('http');
 const crypto = require('crypto');
 
 const { ensureN8nSession } = require('./n8nE2eAuth');
+const { sendTestEmail } = require('./n8nE2eSmtp');
 
 const BASE_URL = process.env.N8N_BASE_URL;
 const OWNER_EMAIL = process.env.N8N_OWNER_EMAIL || 'synology-mail-trigger-e2e@example.com';
@@ -114,7 +115,12 @@ async function main() {
 		// the following manual run exercises the same poll() implementation.
 		const deact = await request('POST', `/rest/workflows/${wfId}/deactivate`, {}, authHeaders);
 		if (deact.statusCode >= 300) throw new Error(`deactivation failed ${deact.statusCode}: ${deact.raw}`);
-		const smtp = await sendTestEmail();
+		const smtp = await sendTestEmail({
+			from: 'sender-filter@example.com',
+			to: 'user@example.com',
+			subject: 'MailPlus Trigger Test',
+			body: 'Trigger node test body from n8n E2E',
+		});
 		console.log('test email sent:', smtp);
 		await sleep(3000);
 		// n8n polling trigger: run the workflow manually to force a poll
@@ -193,28 +199,6 @@ async function main() {
 	} finally {
 		if (credential?.json?.data?.id) await request('DELETE', `/rest/credentials/${credential.json.data.id}`, undefined, authHeaders).catch(() => {});
 	}
-}
-
-function sendTestEmail() {
-	return new Promise((resolve, reject) => {
-		const { execFile } = require('child_process');
-		const script = `
-import smtplib
-from email.mime.text import MIMEText
-msg = MIMEText("Trigger node test body from n8n E2E")
-msg["Subject"] = "MailPlus Trigger Test"
-msg["From"] = "sender-filter@example.com"
-msg["To"] = "user@example.com"
-s = smtplib.SMTP("192.168.1.100", 25, timeout=10)
-s.sendmail("sender-filter@example.com", ["user@example.com"], msg.as_string())
-s.quit()
-print("sent")
-`;
-		execFile('python3', ['-c', script], { timeout: 20000 }, (err, stdout, stderr) => {
-			if (err) reject(new Error('smtp: ' + (stderr || err.message)));
-			else resolve(stdout.trim());
-		});
-	});
 }
 
 main().catch((e) => { console.error(e.stack || e.message); process.exitCode = 1; });

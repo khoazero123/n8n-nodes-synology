@@ -94,21 +94,12 @@ async function main() {
 	const authHeaders = { Cookie: cookie };
 
 	// send a test email so there is a message/thread to act on
-	await new Promise((resolve, reject) => {
-		const { execFile } = require('child_process');
-		const script = `
-import smtplib
-from email.mime.text import MIMEText
-msg = MIMEText("ext ops e2e body")
-msg["Subject"] = "Ext Ops E2E"
-msg["From"] = "user@example.com"
-msg["To"] = "user@example.com"
-s = smtplib.SMTP("192.168.1.100", 25, timeout=10)
-s.sendmail("user@example.com", ["user@example.com"], msg.as_string())
-s.quit()
-print("sent")
-`;
-		execFile('python3', ['-c', script], { timeout: 20000 }, (err, out, serr) => err ? reject(new Error(serr || err.message)) : resolve(out));
+	const { sendTestEmail } = require('./n8nE2eSmtp');
+	await sendTestEmail({
+		from: 'user@example.com',
+		to: 'user@example.com',
+		subject: 'Ext Ops E2E',
+		body: 'ext ops e2e body',
 	});
 	console.log('test email sent');
 	await sleep(5000);

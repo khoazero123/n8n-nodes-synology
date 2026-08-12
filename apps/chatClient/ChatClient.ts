@@ -395,24 +395,6 @@ export class ChatClient {
 	}
 
 	/**
-	 * Whether the credential user is a DSM administrator.
-	 *
-	 * Determined by attempting a DSM session login: a normal (non-admin) user
-	 * is denied with 402 Permission denied (verified live 2026-08-11 for the
-	 * `khoa` user), while an admin can open a DSM session. Swallows the login
-	 * error because a non-admin credential is a valid, expected outcome here
-	 * (we querying permission, not performing a privileged action).
-	 */
-	async isAdmin(): Promise<boolean> {
-		try {
-			await this.synology.login('DSM');
-			return true;
-		} catch {
-			return false;
-		}
-	}
-
-	/**
 	 * List users (session required).
 	 */
 	async listUsers(): Promise<ChatUser[]> {

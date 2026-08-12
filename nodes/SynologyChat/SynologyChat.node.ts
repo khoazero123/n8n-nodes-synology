@@ -14,7 +14,6 @@ import { buildChannelOptions } from '../../apps/chatClient/channelLoadOptions';
 import { buildUserOptions } from '../../apps/chatClient/userLoadOptions';
 import { sendMessageAsUser } from '../../apps/chatClient/sendMessageUtils';
 import { deletePosts } from '../../apps/chatClient/deleteMessageUtils';
-import { buildDeleteScopeOptions } from '../../apps/chatClient/deleteScopeOptions';
 import { assertTriggerWordForAnyChannel } from '../../apps/chatClient/outgoingWebhookUtils';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
@@ -293,17 +292,15 @@ export class SynologyChat implements INodeType {
 			},
 			// --- Channel: Delete Messages ---
 			{
-				// eslint-disable-next-line n8n-nodes-base/node-param-display-name-wrong-for-dynamic-options -- enum select (Who to Delete), not a resource locator
 				displayName: 'Who to Delete',
 				name: 'delScope',
 				type: 'options',
+				options: [
+					{ name: 'My Messages Only', value: 'own', description: 'Only posts sent by the logged-in user. This is the only scope the Chat API can actually delete.' },
+				],
 				default: 'own',
-				typeOptions: {
-					loadOptionsMethod: 'getDeleteScopes',
-				},
 				displayOptions: { show: { resource: ['channel'], operation: ['deleteMessages'] } },
-				// eslint-disable-next-line n8n-nodes-base/node-param-description-wrong-for-dynamic-options -- enum select, not a resource locator
-				description: 'Which messages to delete. Options are filtered to the scopes the Chat API can actually delete for the current permission (normal users can only delete their own posts).',
+				description: 'Which messages to delete. The Chat API only permits deleting this user\'s own posts (deleting other users\' posts is rejected with 415, so only own is offered).',
 			},
 			{
 				displayName: 'Delete Messages Older Than',
@@ -478,12 +475,6 @@ export class SynologyChat implements INodeType {
 				const credentials = await this.getCredentials('synologyApi') as unknown as SynologyCredentials;
 				const chat = new ChatClient(new SynologyClient(this as never, credentials));
 				return buildUserOptions(await chat.listUsers());
-			},
-			async getDeleteScopes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const credentials = await this.getCredentials('synologyApi') as unknown as SynologyCredentials;
-				const chat = new ChatClient(new SynologyClient(this as never, credentials));
-				const isAdmin = await chat.isAdmin();
-				return buildDeleteScopeOptions(isAdmin);
 			},
 		},
 	};

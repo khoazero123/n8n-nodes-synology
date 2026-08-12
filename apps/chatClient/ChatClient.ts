@@ -11,6 +11,7 @@ import {
 	CHAT_CHATBOT_API_VERSION,
 	CHAT_POST_API,
 	CHAT_POST_API_VERSION,
+	CHAT_POST_DELETE_API_VERSION,
 	CHAT_SESSION,
 	CHAT_WEBHOOK_API_VERSION,
 	CHAT_WEBHOOK_INCOMING_API,
@@ -327,6 +328,26 @@ export class ChatClient {
 	}
 
 	/**
+	 * Delete a single post by id (session required).
+	 *
+	 * Verified live 2026-08-11: Post.delete (v8) only succeeds for posts created
+	 * by the logged-in user and within a short age window. Deleting other users'
+	 * posts (or own posts past the window) returns error 415
+	 * "Post exceeds allowable delete time". Callers should only target own posts.
+	 */
+	async deletePost(postId: number): Promise<IDataObject> {
+		return await this.synology.request<IDataObject>({
+			api: CHAT_POST_API,
+			version: CHAT_POST_DELETE_API_VERSION,
+			method: 'delete',
+			session: CHAT_SESSION,
+			params: { post_id: postId },
+		});
+	}
+
+
+
+	/**
 	 * Send a message to a channel as the logged-in DSM user.
 	 *
 	 * Uses the session API SYNO.Chat.Post.create (v5) exactly like the web
@@ -373,7 +394,27 @@ export class ChatClient {
 		return created;
 	}
 
-	/** List users (session required). */
+	/**
+	 * Whether the credential user is a DSM administrator.
+	 *
+	 * Determined by attempting a DSM session login: a normal (non-admin) user
+	 * is denied with 402 Permission denied (verified live 2026-08-11 for the
+	 * `khoa` user), while an admin can open a DSM session. Swallows the login
+	 * error because a non-admin credential is a valid, expected outcome here
+	 * (we querying permission, not performing a privileged action).
+	 */
+	async isAdmin(): Promise<boolean> {
+		try {
+			await this.synology.login('DSM');
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * List users (session required).
+	 */
 	async listUsers(): Promise<ChatUser[]> {
 		const data = await this.synology.request<IDataObject>({
 			api: 'SYNO.Chat.User',

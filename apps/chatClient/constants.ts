@@ -24,3 +24,5 @@ export const CHAT_CHANNEL_API_VERSION = 1;
 export const CHAT_CHANNEL_ANONYMOUS_API_VERSION = 2;
 /** Post APIs (session) use version 5. create/send verified 2026-08-07. */
 export const CHAT_POST_API_VERSION = 5;
+/** Post.delete uses a higher version (v8, verified 2026-08-11). */
+export const CHAT_POST_DELETE_API_VERSION = 8;

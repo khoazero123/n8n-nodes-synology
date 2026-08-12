@@ -8,10 +8,13 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { MAIN_CONNECTION_TYPE } from '../shared/connectionTypes';
+import { NodeOperationError } from 'n8n-workflow';
 import { ChatClient } from '../../apps/chatClient/ChatClient';
 import { buildChannelOptions } from '../../apps/chatClient/channelLoadOptions';
 import { buildUserOptions } from '../../apps/chatClient/userLoadOptions';
 import { sendMessageAsUser } from '../../apps/chatClient/sendMessageUtils';
+import { deletePosts } from '../../apps/chatClient/deleteMessageUtils';
+import { buildDeleteScopeOptions } from '../../apps/chatClient/deleteScopeOptions';
 import { assertTriggerWordForAnyChannel } from '../../apps/chatClient/outgoingWebhookUtils';
 import { SynologyClient } from '../../transport/SynologyClient';
 import type { SynologyCredentials } from '../../transport/types';
@@ -42,6 +45,7 @@ const channelOperations = [
 	{ name: 'Create', value: 'create', action: 'Create a named channel' },
 	{ name: 'List Posts', value: 'listPosts', action: 'List posts in a channel' },
 	{ name: 'List Users', value: 'listUsers', action: 'List users' },
+	{ name: 'Delete Messages', value: 'deleteMessages', action: 'Delete messages in a channel by scope and age' },
 ];
 
 const outgoingWebhookOperations = [
@@ -270,7 +274,7 @@ export class SynologyChat implements INodeType {
 				typeOptions: {
 					loadOptionsMethod: 'getChannels',
 				},
-				displayOptions: { show: { resource: ['channel'], operation: ['get', 'listPosts'] } },
+				displayOptions: { show: { resource: ['channel'], operation: ['get', 'listPosts', 'deleteMessages'] } },
 			},
 			{
 				displayName: 'Limit',
@@ -286,6 +290,68 @@ export class SynologyChat implements INodeType {
 				type: 'number',
 				default: 0,
 				displayOptions: { show: { resource: ['channel'], operation: ['listPosts'] } },
+			},
+			// --- Channel: Delete Messages ---
+			{
+				// eslint-disable-next-line n8n-nodes-base/node-param-display-name-wrong-for-dynamic-options -- enum select (Who to Delete), not a resource locator
+				displayName: 'Who to Delete',
+				name: 'delScope',
+				type: 'options',
+				default: 'own',
+				typeOptions: {
+					loadOptionsMethod: 'getDeleteScopes',
+				},
+				displayOptions: { show: { resource: ['channel'], operation: ['deleteMessages'] } },
+				// eslint-disable-next-line n8n-nodes-base/node-param-description-wrong-for-dynamic-options -- enum select, not a resource locator
+				description: 'Which messages to delete. Options are filtered to the scopes the Chat API can actually delete for the current permission (normal users can only delete their own posts).',
+			},
+			{
+				displayName: 'Delete Messages Older Than',
+				name: 'delOlderThan',
+				type: 'fixedCollection',
+				typeOptions: { multipleValues: false },
+				default: {},
+				displayOptions: { show: { resource: ['channel'], operation: ['deleteMessages'] } },
+				description: 'Only delete messages older than the given age (in hours/days). Leave empty to delete regardless of age.',
+				options: [
+					{
+						name: 'age',
+						displayName: 'Age',
+						values: [
+							{
+								displayName: 'Hours',
+								name: 'hours',
+								type: 'number',
+								typeOptions: { minValue: 0, numberPrecision: 2 },
+								default: 0,
+							},
+							{
+								displayName: 'Days',
+								name: 'days',
+								type: 'number',
+								typeOptions: { minValue: 0, numberPrecision: 2 },
+								default: 0,
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Max Messages to Consider',
+				name: 'delLimit',
+				type: 'number',
+				typeOptions: { minValue: 0 },
+				default: 0,
+				displayOptions: { show: { resource: ['channel'], operation: ['deleteMessages'] } },
+				description: 'Maximum number of messages to evaluate from the top of the channel. 0 = all available.',
+			},
+			{
+				displayName: 'Dry Run',
+				name: 'delDryRun',
+				type: 'boolean',
+				default: false,
+				displayOptions: { show: { resource: ['channel'], operation: ['deleteMessages'] } },
+				description: 'Whether to list and report which messages would be deleted without actually deleting them',
 			},
 			{
 				displayName: 'Name',
@@ -413,6 +479,12 @@ export class SynologyChat implements INodeType {
 				const chat = new ChatClient(new SynologyClient(this as never, credentials));
 				return buildUserOptions(await chat.listUsers());
 			},
+			async getDeleteScopes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials('synologyApi') as unknown as SynologyCredentials;
+				const chat = new ChatClient(new SynologyClient(this as never, credentials));
+				const isAdmin = await chat.isAdmin();
+				return buildDeleteScopeOptions(isAdmin);
+			},
 		},
 	};
 
@@ -496,6 +568,40 @@ export class SynologyChat implements INodeType {
 					}) as unknown as IDataObject;
 				} else if (operation === 'listUsers') {
 					data = await chat.listUsers() as unknown as IDataObject[];
+				} else if (operation === 'deleteMessages') {
+					const channelId = Number(this.getNodeParameter('chChannelId', i));
+					const scope = this.getNodeParameter('delScope', i, 'own') as 'own' | 'others' | 'all';
+					const dryRun = this.getNodeParameter('delDryRun', i, false) as boolean;
+					const limit = this.getNodeParameter('delLimit', i, 0) as number;
+
+					// Resolve the age filter (hours + days -> ms).
+					const age = this.getNodeParameter('delOlderThan', i) as
+						| { age?: { hours?: number; days?: number } }
+						| Record<string, never>;
+					const hours = Number(age?.age?.hours ?? 0) || 0;
+					const days = Number(age?.age?.days ?? 0) || 0;
+					const olderThanMs = hours > 0 || days > 0
+						? (hours * 3600 + days * 86400) * 1000
+						: null;
+
+					// Resolve the current user id from the credential username.
+					const users = await chat.listUsers();
+					const currentUser = users.find((u) => (u.username ?? '') === credentials.username);
+					if (!currentUser) {
+						throw new NodeOperationError(
+							this.getNode(),
+							`Could not resolve the logged-in user id for username "${credentials.username}". ` +
+							'Cannot determine which messages are yours to delete.',
+						);
+					}
+					data = await deletePosts(chat, {
+						channelId,
+						scope,
+						olderThanMs,
+						limit,
+						dryRun,
+						currentUserId: Number(currentUser.user_id),
+					}) as unknown as IDataObject;
 				}
 			} else if (resource === 'outgoingWebhook') {
 				if (operation === 'create') {

@@ -295,6 +295,7 @@ export class SynologyChat implements INodeType {
 				displayName: 'Who to Delete',
 				name: 'delScope',
 				type: 'options',
+				required: true,
 				options: [
 					{ name: 'My Messages Only', value: 'own', description: 'Only posts sent by the logged-in user. This is the only scope the Chat API can actually delete.' },
 				],
